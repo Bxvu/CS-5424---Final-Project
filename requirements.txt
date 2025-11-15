@@ -1,0 +1,5 @@
+# Standard Serial communication library
+pyserial>=3.5
+
+# Note: Do NOT install 'serial'. It causes conflicts.
+# If 'serial' is installed, run: pip uninstall serial

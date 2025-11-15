@@ -1,0 +1,450 @@
+--- NEUROSKY SOCKET CLIENT ---
+Target: 9C:54:1C:00:A7:15 on Channel 2
+1. Ensure headset is BLINKING (not connected to anything else).
+------------------------------
+Attempting connection to Channel 2...
+Error: [Errno 112] Host is down
+Retrying in 2 seconds...
+Attempting connection to Channel 2...
+Error: [Errno 112] Host is down
+Retrying in 2 seconds...
+Attempting connection to Channel 2...
+Error: [Errno 112] Host is down
+Retrying in 2 seconds...
+Attempting connection to Channel 2...
+Error: [Errno 112] Host is down
+Retrying in 2 seconds...
+Attempting connection to Channel 2...
+Error: [Errno 112] Host is down
+Retrying in 2 seconds...
+Attempting connection to Channel 2...
+Error: [Errno 112] Host is down
+Retrying in 2 seconds...
+Attempting connection to Channel 2...
+Error: [Errno 112] Host is down
+Retrying in 2 seconds...
+Attempting connection to Channel 2...
+Error: [Errno 112] Host is down
+Retrying in 2 seconds...
+Attempting connection to Channel 2...
+Error: [Errno 112] Host is down
+Retrying in 2 seconds...
+Attempting connection to Channel 2...
+>>> SUCCESS! Socket Connected <<<
+Waiting for data stream...
+Signal Quality: 25 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 54 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 25 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 26 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 25 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 25 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 25 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 25 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 48
+--> MEDITATION: 50
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 54
+--> MEDITATION: 69
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 54
+--> MEDITATION: 69
+Signal Quality: 25 (0 is Best)
+--> ATTENTION: 54
+--> MEDITATION: 69
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 60
+--> MEDITATION: 64
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 44
+--> MEDITATION: 69
+Signal Quality: 80 (0 is Best)
+--> ATTENTION: 44
+--> MEDITATION: 69
+Signal Quality: 29 (0 is Best)
+--> ATTENTION: 44
+--> MEDITATION: 69
+Signal Quality: 55 (0 is Best)
+--> ATTENTION: 44
+--> MEDITATION: 69
+Signal Quality: 55 (0 is Best)
+--> ATTENTION: 44
+--> MEDITATION: 69
+Signal Quality: 200 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 200 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 200 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 200 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 200 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 200 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 200 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 200 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 200 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 25 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 25 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 26 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 26 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 51 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 0
+--> MEDITATION: 0
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 48
+--> MEDITATION: 50
+Signal Quality: 25 (0 is Best)
+--> ATTENTION: 48
+--> MEDITATION: 50
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 47
+--> MEDITATION: 37
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 50
+--> MEDITATION: 61
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 64
+--> MEDITATION: 63
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 57
+--> MEDITATION: 77
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 56
+--> MEDITATION: 83
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 57
+--> MEDITATION: 75
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 57
+--> MEDITATION: 66
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 63
+--> MEDITATION: 70
+Signal Quality: 0 (0 is Best)
+--> MEDITATION: 4
+--> MEDITATION: 67
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 53
+--> MEDITATION: 60
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 50
+--> MEDITATION: 64
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 41
+--> MEDITATION: 64
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 30
+--> MEDITATION: 61
+Signal Quality: 0 (0 is Best)
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 54
+--> MEDITATION: 78
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 61
+--> MEDITATION: 75
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 63
+--> MEDITATION: 66
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 50
+--> MEDITATION: 66
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 40
+--> MEDITATION: 57
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 43
+--> MEDITATION: 54
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 61
+--> MEDITATION: 63
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 74
+--> MEDITATION: 67
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 83
+--> MEDITATION: 78
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 75
+--> MEDITATION: 90
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 67
+--> MEDITATION: 97
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 60
+--> MEDITATION: 88
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 53
+--> MEDITATION: 75
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 47
+--> MEDITATION: 74
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 37
+--> MEDITATION: 63
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 40
+--> MEDITATION: 74
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 37
+--> MEDITATION: 67
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 35
+--> MEDITATION: 51
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 40
+--> MEDITATION: 57
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 47
+--> MEDITATION: 56
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 50
+--> MEDITATION: 54
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 61
+--> MEDITATION: 66
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 66
+--> MEDITATION: 75
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 54
+--> MEDITATION: 60
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 64
+--> MEDITATION: 74
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 61
+--> MEDITATION: 61
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 4
+--> MEDITATION: 51
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 53
+--> MEDITATION: 60
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 53
+--> MEDITATION: 53
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 54
+--> MEDITATION: 64
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 60
+--> MEDITATION: 60
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 75
+--> MEDITATION: 70
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 75
+--> MEDITATION: 63
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 81
+--> MEDITATION: 56
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 83
+--> MEDITATION: 56
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 90
+--> MEDITATION: 48
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 80
+--> MEDITATION: 44
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 67
+--> MEDITATION: 43
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 54
+--> MEDITATION: 38
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 50
+--> MEDITATION: 40
+Signal Quality: 0 (0 is Best)
+--> MEDITATION: 57
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 67
+--> MEDITATION: 66
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 83
+--> MEDITATION: 74
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 67
+--> MEDITATION: 69
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 75
+--> MEDITATION: 74
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 81
+--> MEDITATION: 75
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 83
+--> MEDITATION: 81
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 87
+--> MEDITATION: 69
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 70
+--> MEDITATION: 51
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 53
+--> MEDITATION: 40
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 37
+--> MEDITATION: 29
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 30
+--> MEDITATION: 34
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 34
+--> MEDITATION: 27
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 50
+--> MEDITATION: 37
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 53
+--> MEDITATION: 50
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 54
+--> MEDITATION: 51
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 61
+--> MEDITATION: 64
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 47
+--> MEDITATION: 69
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 41
+--> MEDITATION: 61
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 50
+--> MEDITATION: 69
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 53
+--> MEDITATION: 75
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 50
+--> MEDITATION: 54
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 47
+--> MEDITATION: 35
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 38
+--> MEDITATION: 40
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 30
+--> MEDITATION: 38
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 37
+--> MEDITATION: 56
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 50
+--> MEDITATION: 80
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 60
+--> MEDITATION: 80
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 60
+--> MEDITATION: 74
+Signal Quality: 0 (0 is Best)
+--> MEDITATION: 56
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 50
+--> MEDITATION: 56
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 41
+--> MEDITATION: 35
+Signal Quality: 0 (0 is Best)
+--> ATTENTION: 50
+--> MEDITATION: 35

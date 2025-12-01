@@ -2,7 +2,7 @@ import pi_servo_hat
 import time
 
 # Configuration
-SERVO_CH = 0      # Channel 0
+SERVO_CH = 2      # Channel 0
 SERVO_MIN = 0     # Minimum angle
 SERVO_MAX = 180   # Maximum angle
 

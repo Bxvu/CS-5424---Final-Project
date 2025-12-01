@@ -19,21 +19,30 @@ class ServoWidget(tk.Frame):
         self.label = tk.Label(self, text=f"{servo_name}", font=("Arial", 10, "bold"))
         self.label.pack(pady=2)
         
-        self.canvas = tk.Canvas(self, width=200, height=50, bg="lightgray")
-        self.canvas.pack(padx=5, pady=5)
+        # Set small initial dimensions so it doesn't force the window to be huge
+        self.canvas = tk.Canvas(self, bg="lightgray", width=10, height=10)
+        self.canvas.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Draw split rectangle
-        self.rect_left = self.canvas.create_rectangle(0, 0, 100, 50, fill="white", outline="black", tags="left")
-        self.rect_right = self.canvas.create_rectangle(100, 0, 200, 50, fill="white", outline="black", tags="right")
+        self.rect_left = self.canvas.create_rectangle(0, 0, 0, 0, fill="white", outline="black", tags="left")
+        self.rect_right = self.canvas.create_rectangle(0, 0, 0, 0, fill="white", outline="black", tags="right")
         
         # Add text labels
-        self.canvas.create_text(50, 25, text="-", font=("Arial", 20))
-        self.canvas.create_text(150, 25, text="+", font=("Arial", 20))
+        self.text_left = self.canvas.create_text(0, 0, text="-", font=("Arial", 20))
+        self.text_right = self.canvas.create_text(0, 0, text="+", font=("Arial", 20))
         
         # Bind events
+        self.canvas.bind("<Configure>", self.on_resize)
         self.canvas.bind("<Enter>", self.on_enter)
         self.canvas.bind("<Leave>", self.on_leave)
         self.canvas.bind("<Motion>", self.on_motion)
+
+    def on_resize(self, event):
+        w, h = event.width, event.height
+        self.canvas.coords(self.rect_left, 0, 0, w/2, h)
+        self.canvas.coords(self.rect_right, w/2, 0, w, h)
+        self.canvas.coords(self.text_left, w/4, h/2)
+        self.canvas.coords(self.text_right, 3*w/4, h/2)
         
     def on_enter(self, event):
         self.is_hovering = True
@@ -46,15 +55,36 @@ class ServoWidget(tk.Frame):
         self.reset_visuals()
         
     def on_motion(self, event):
-        new_side = 'left' if event.x < 100 else 'right'
+        w = self.canvas.winfo_width()
+        new_side = 'left' if event.x < w/2 else 'right'
         if new_side != self.hover_side:
             self.hover_side = new_side
             self.hover_start_time = time.time() # Reset timer on side switch
             self.update_visuals()
+
+    def update_gaze(self, rel_x):
+        """Manual update from eye tracker coordinates (relative to widget)"""
+        if not self.is_hovering:
+            self.is_hovering = True
+            self.hover_start_time = time.time()
+        
+        self.check_side(rel_x)
+
+    def clear_hover(self):
+        """Manual clear hover state"""
+        if self.is_hovering:
+            self.is_hovering = False
+            self.hover_side = None
+            self.reset_visuals()
             
     def check_side(self, x):
-        self.hover_side = 'left' if x < 100 else 'right'
-        self.update_visuals()
+        w = self.canvas.winfo_width()
+        new_side = 'left' if x < w/2 else 'right'
+        
+        if new_side != self.hover_side:
+            self.hover_side = new_side
+            self.hover_start_time = time.time() # Reset timer on side switch
+            self.update_visuals()
         
     def update_visuals(self):
         if self.hover_side == 'left':
@@ -68,15 +98,24 @@ class ServoWidget(tk.Frame):
         self.canvas.itemconfig(self.rect_left, fill="white")
         self.canvas.itemconfig(self.rect_right, fill="white")
         
-    def check_dwell(self):
+    def process_frame(self, attention_level):
         if self.is_hovering and self.hover_side:
-            elapsed = time.time() - self.hover_start_time
-            if elapsed >= self.dwell_time:
-                # Trigger action
-                if self.callback:
-                    self.callback(self.arm_name, self.servo_name, self.hover_side)
+            # Buffer check: wait for dwell_time before acting
+            if time.time() - self.hover_start_time < self.dwell_time:
+                return
+
+            # Threshold check - only move if attention is sufficient
+            # You can adjust this threshold (e.g., 40, 50)
+            THRESHOLD = 35
+            
+            if attention_level > THRESHOLD:
+                # Calculate step size based on attention
+                # Higher attention -> larger steps (faster movement)
+                # Map 40-100 to 1-5 degrees
+                # step = 1 + int((attention_level - THRESHOLD) / 15)
                 
-                # Reset timer to prevent rapid firing, or keep firing?
-                # For now, let's reset to allow continuous activation if user keeps staring
-                # But maybe add a small delay so it doesn't flood
-                self.hover_start_time = time.time() 
+                # nah have constant slow step
+                step = 1
+
+                if self.callback:
+                    self.callback(self.arm_name, self.servo_name, self.hover_side, step) 

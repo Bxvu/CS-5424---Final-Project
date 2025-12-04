@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import tkinter as tk
+import signal
+import atexit
 from servo_widget import ServoWidget
+from preset_widget import PresetWidget, ToggleWidget
 from headset_input import HeadsetClient
 try:
     from eye_tracker import EyeTracker
@@ -36,20 +39,51 @@ SERVO_MAP = {
     }
 }
 
+# Servo Limits Configuration
+SERVO_LIMITS = {
+    "Black": {
+        "Base": (-50, 130),
+        "Shoulder": (20, 110),
+        "Elbow": (-50, 130),
+        "Wrist": (-50, 130), # 90 middle
+        "Gripper": (-50, 45) 
+    },
+    "Orange": {
+        "Base": (-50, 130),
+        "Shoulder": (10, 60),
+        "Elbow": (-50, 130),
+        "Wrist": (-50, 130), # 55 middle
+        "Gripper": (-20, 73)
+    }
+}
+
+ARM_CONFIG = {
+    "LeftArm": "Orange",
+    "RightArm": "Black"
+}
+
 class ServoGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Robot Arm Servo Control")
         # self.root.geometry("600x600")
         self.root.attributes('-fullscreen', True)
-        self.root.bind("<Escape>", lambda e: self.root.attributes("-fullscreen", False)) # Allow exit from fullscreen
+        self.root.bind("<Escape>", self.quit_app) # Exit on Escape
+        self.running = True
         
         # Initialize Servo Hat
         self.servo = None
         if HAS_HARDWARE:
             try:
                 self.servo = pi_servo_hat.PiServoHat()
-                self.servo.restart()
+                # Ensure clean startup: sleep first, then restart
+                try:
+                    self.servo.sleep()  # Stop any existing PWM
+                    time.sleep(0.1)
+                except:
+                    pass
+                self.servo.restart()  # Re-initialize cleanly
+                time.sleep(0.2)  # Let PWM stabilize
                 print("Servo Hat Initialized.")
             except Exception as e:
                 print(f"Error initializing Servo Hat: {e}")
@@ -90,11 +124,21 @@ class ServoGUI:
             self.servo_angles[arm] = {}
             for joint in ["Base", "Shoulder", "Elbow", "Wrist", "Gripper"]:
                 self.servo_angles[arm][joint] = 90
-                # Initialize hardware to 90 if possible
+                # Initialize hardware to midpoint if possible
                 if self.servo:
                     try:
+                        # Get limits
+                        servo_type = ARM_CONFIG.get(arm)
+                        min_limit, max_limit = 0, 180
+                        if servo_type and joint in SERVO_LIMITS[servo_type]:
+                            min_limit, max_limit = SERVO_LIMITS[servo_type][joint]
+                        
+                        # Calculate midpoint
+                        midpoint = int((min_limit + max_limit) / 2)
+                        self.servo_angles[arm][joint] = midpoint
+                        
                         channel = SERVO_MAP[arm][joint]
-                        self.servo.move_servo_position(channel, 90)
+                        self.servo.move_servo_position(channel, midpoint)
                     except Exception as e:
                         print(f"Failed to set initial position for {arm} {joint}: {e}")
 
@@ -113,10 +157,24 @@ class ServoGUI:
         # Attention Display
         self.attention_label = tk.Label(self.info_frame, text="Attention: 0", font=("Arial", 12))
         self.attention_label.pack(side="left", expand=True)
+
+        # Toggle Button (gaze-selectable)
+        self.toggle_widget = ToggleWidget(
+            self.info_frame,
+            text_on="Switch to Manual",
+            text_off="Switch to Presets",
+            dwell_time=1.5,
+            callback=self.toggle_mode
+        )
+        self.toggle_widget.pack(side="right", padx=10)
+        self.toggle_widget.set_state(True) # Start in "On" state (Presets mode)
+        
+        # Track current mode
+        self.in_preset_mode = True
         
         # Columns Frame
         self.columns_frame = tk.Frame(self.main_frame)
-        self.columns_frame.pack(side="top", fill="both", expand=True)
+        # self.columns_frame.pack(side="top", fill="both", expand=True) # Hidden by default
 
         # Split into two sides
         self.left_frame = tk.Frame(self.columns_frame, borderwidth=0, relief="sunken")
@@ -132,9 +190,17 @@ class ServoGUI:
         # Servo Widgets Storage
         self.widgets = []
         
+        # Preset Widgets Storage
+        self.preset_widgets = []
+        
         # Create Widgets
         self.create_arm_widgets(self.left_frame, "LeftArm", ["Base", "Shoulder", "Elbow", "Wrist", "Gripper"])
         self.create_arm_widgets(self.right_frame, "RightArm", ["Base", "Shoulder", "Elbow", "Wrist", "Gripper"])
+        
+        # Create Presets Frame (Shown by default)
+        self.presets_frame = tk.Frame(self.main_frame)
+        self.create_preset_ui()
+        self.presets_frame.pack(side="top", fill="both", expand=True)
         
         # Start Update Loop
         self.update_loop()
@@ -143,6 +209,17 @@ class ServoGUI:
         for name in servo_names:
             widget = ServoWidget(parent, arm_name, name, callback=self.on_servo_action)
             widget.pack(pady=5, fill="both", expand=True)
+            
+            # Set limits and initial angle
+            servo_type = ARM_CONFIG.get(arm_name)
+            if servo_type and name in SERVO_LIMITS[servo_type]:
+                min_limit, max_limit = SERVO_LIMITS[servo_type][name]
+                widget.set_limits(min_limit, max_limit)
+            
+            # Set initial angle from state
+            initial_angle = self.servo_angles[arm_name][name]
+            widget.set_angle(initial_angle)
+            
             self.widgets.append(widget)
             
     def on_servo_action(self, arm, servo_name, action, step=1):
@@ -153,8 +230,14 @@ class ServoGUI:
         current_angle = self.servo_angles[arm][servo_name]
         new_angle = current_angle + change
         
-        # Clamp between 0 and 180
-        new_angle = max(0, min(180, new_angle))
+        # Get limits for this specific servo
+        servo_type = ARM_CONFIG.get(arm)
+        min_limit, max_limit = 0, 180 # Default
+        if servo_type and servo_name in SERVO_LIMITS[servo_type]:
+            min_limit, max_limit = SERVO_LIMITS[servo_type][servo_name]
+        
+        # Clamp between limits
+        new_angle = max(min_limit, min(max_limit, new_angle))
         
         if new_angle != current_angle:
             self.servo_angles[arm][servo_name] = new_angle
@@ -167,8 +250,17 @@ class ServoGUI:
                     self.servo.move_servo_position(channel, new_angle)
                 except Exception as e:
                     print(f"Error moving servo: {e}")
+            
+            # Update widget visual state
+            # Find the widget and update its angle
+            for widget in self.widgets:
+                if widget.arm_name == arm and widget.servo_name == servo_name:
+                    widget.set_angle(new_angle)
+                    break
         
     def update_loop(self):
+        if not self.running:
+            return
         # Get current attention level
         attention = self.headset.get_attention()
         self.attention_label.config(text=f"Attention: {attention}")
@@ -183,35 +275,281 @@ class ServoGUI:
             except:
                 pass
 
-            # Manual Hit Testing for Widgets
+            # Check toggle widget gaze
+            tw = self.toggle_widget
+            twx = tw.winfo_rootx()
+            twy = tw.winfo_rooty()
+            tww = tw.winfo_width()
+            twh = tw.winfo_height()
+            if twx <= gaze_x <= twx + tww and twy <= gaze_y <= twy + twh:
+                tw.update_gaze()
+            else:
+                tw.clear_hover()
+
+            # Manual Hit Testing for Servo Widgets (only if in manual mode)
+            if not self.in_preset_mode:
+                for widget in self.widgets:
+                    wx = widget.winfo_rootx()
+                    wy = widget.winfo_rooty()
+                    ww = widget.winfo_width()
+                    wh = widget.winfo_height()
+                    
+                    if wx <= gaze_x <= wx + ww and wy <= gaze_y <= wy + wh:
+                        rel_x = gaze_x - wx
+                        widget.update_gaze(rel_x)
+                    else:
+                        widget.clear_hover()
+            else:
+                # Hit testing for Preset Widgets
+                for pw in self.preset_widgets:
+                    pwx = pw.winfo_rootx()
+                    pwy = pw.winfo_rooty()
+                    pww = pw.winfo_width()
+                    pwh = pw.winfo_height()
+                    
+                    if pwx <= gaze_x <= pwx + pww and pwy <= gaze_y <= pwy + pwh:
+                        pw.update_gaze()
+                    else:
+                        pw.clear_hover()
+        
+        # Process frames for all relevant widgets
+        self.toggle_widget.process_frame(attention)
+        
+        if not self.in_preset_mode:
             for widget in self.widgets:
-                # Get widget absolute coordinates
-                wx = widget.winfo_rootx()
-                wy = widget.winfo_rooty()
-                ww = widget.winfo_width()
-                wh = widget.winfo_height()
+                widget.process_frame(attention)
+        else:
+            for pw in self.preset_widgets:
+                pw.process_frame(attention)
                 
-                # Check intersection
-                if wx <= gaze_x <= wx + ww and wy <= gaze_y <= wy + wh:
-                    # Calculate relative x
-                    rel_x = gaze_x - wx
-                    widget.update_gaze(rel_x)
-                else:
-                    widget.clear_hover()
-        
-        # If no eye tracker, we rely on mouse events which are handled by widget bindings
-        
-        for widget in self.widgets:
-            widget.process_frame(attention)
         self.root.after(50, self.update_loop) # Check every 50ms
 
+    def toggle_mode(self):
+        """Toggle between fine-grained control and preset poses."""
+        if not self.in_preset_mode:
+            # Switch to Presets mode
+            self.columns_frame.pack_forget()
+            self.presets_frame.pack(side="top", fill="both", expand=True)
+            self.in_preset_mode = True
+            self.toggle_widget.set_state(True)
+        else:
+            # Switch to Manual mode
+            self.presets_frame.pack_forget()
+            self.columns_frame.pack(side="top", fill="both", expand=True)
+            self.in_preset_mode = False
+            self.toggle_widget.set_state(False)
+
+    def create_preset_ui(self):
+        """Create the preset poses UI with gaze-selectable widgets."""
+        # Header
+        tk.Label(self.presets_frame, text="Preset Poses (Look to Select)", font=("Arial", 16, "bold")).pack(pady=10)
+
+        # Preset definitions: name -> {arm: {joint: angle}}
+        # Preset definitions: name -> {arm: {joint: angle}} OR list of (duration_ms, {arm: {joint: angle}})
+        self.presets = {
+            "Home Position": {
+                "LeftArm": {"Base": 90, "Shoulder": 35, "Elbow": 90, "Wrist": 90, "Gripper": 0},
+                "RightArm": {"Base": 90, "Shoulder": 65, "Elbow": 90, "Wrist": 90, "Gripper": 0},
+            },
+            "Left Gripper Open": {
+                "LeftArm": {"Gripper": -20},
+            },
+            "Left Gripper Closed": {
+                "LeftArm": {"Gripper": 73},
+            },
+            "Right Gripper Open": {
+                "RightArm": {"Gripper": -50},
+            },
+            "Right Gripper Closed": {
+                "RightArm": {"Gripper": 45},
+            },
+            "Left Elbow Bent (90°)": {
+                "LeftArm": {"Elbow": 90},
+            },
+            "Left Elbow Extended (0°)": {
+                "LeftArm": {"Elbow": 0},
+            },
+            "Right Elbow Bent (90°)": {
+                "RightArm": {"Elbow": 90},
+            },
+            "Right Elbow Extended (0°)": {
+                "RightArm": {"Elbow": 0},
+            },
+            "Wave Animation": [
+                (500, {"RightArm": {"Shoulder": 80, "Elbow": 90, "Wrist": 50}}),  # Start
+                (300, {"RightArm": {"Wrist": 130}}), # Wave Left
+                (300, {"RightArm": {"Wrist": 50}}),  # Wave Right
+                (300, {"RightArm": {"Wrist": 130}}), # Wave Left
+                (300, {"RightArm": {"Wrist": 50}}),  # Wave Right
+                (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90}})   # Return Home
+            ],
+            "Wave Animation with Both Arms": [
+                (500, {"RightArm": {"Shoulder": 80, "Elbow": 90, "Wrist": 50}, "LeftArm": {"Shoulder": 80, "Elbow": 90, "Wrist": 50}}),  # Start
+                (300, {"RightArm": {"Wrist": 130}, "LeftArm": {"Wrist": 130}}), # Wave Left
+                (300, {"RightArm": {"Wrist": 50}, "LeftArm": {"Wrist": 50}}),  # Wave Right
+                (300, {"RightArm": {"Wrist": 130}, "LeftArm": {"Wrist": 130}}), # Wave Left
+                (300, {"RightArm": {"Wrist": 50}, "LeftArm": {"Wrist": 50}}),  # Wave Right
+                (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90}, "LeftArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90}})   # Return Home
+            ],
+            "Reach Forward (Both)": [   
+                (500, {"RightArm": {"Shoulder": 45, "Elbow": 0}, "LeftArm": {"Shoulder": 45, "Elbow": 0}}),
+                (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90}, "LeftArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90}}),
+            ],
+            "Throw (1. Prepare)": {
+                "RightArm": {"Shoulder": 30, "Elbow": 120, "Wrist": 90, "Gripper": -50}, # Shoulder > 20, Gripper > -50
+            },
+            "Throw (2. Load)": {
+                "RightArm": {"Shoulder": 30, "Elbow": 120, "Wrist": 90, "Gripper": 45}, # Close gripper on object
+            },
+            "Throw (3. Launch)": [
+                (100, {"RightArm": {"Shoulder": 80, "Elbow": 80}}), # Accelerate
+                (150, {"RightArm": {"Shoulder": 105, "Elbow": 50, "Gripper": 45}}), # Swing (Keep Closed)
+                (150, {"RightArm": {"Shoulder": 110, "Elbow": 45, "Gripper": -50}}), # Release (Open at end)
+                (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90, "Gripper": -50}}) # Return Home
+            ],
+            "Kick (1. Load)": {
+                "RightArm": {"Shoulder": 90, "Elbow": -50, "Wrist": 90, "Gripper": 45}, # Low and bent back
+            },
+            "Kick (2. Strike)": [
+                (200, {"RightArm": {"Shoulder": 70, "Elbow": 30}}), # Fast swing up and out
+                (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90, "Gripper": 0}}) # Return Home
+            ],
+        }
+
+        # Create gaze-selectable preset widgets
+        btn_frame = tk.Frame(self.presets_frame)
+        btn_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        row = 0
+        col = 0
+        for preset_name in self.presets.keys():
+            pw = PresetWidget(
+                btn_frame,
+                preset_name,
+                dwell_time=1.5,
+                callback=self.apply_preset
+            )
+            pw.grid(row=row, column=col, padx=10, pady=5, sticky="nsew")
+            self.preset_widgets.append(pw)
+            col += 1
+            if col > 1:  # 2 columns
+                col = 0
+                row += 1
+        
+        # Configure grid weights for even spacing
+        for i in range(2):
+            btn_frame.columnconfigure(i, weight=1)
+
+    def apply_preset(self, preset_name):
+        """Apply a preset pose or animation to the servos."""
+        preset = self.presets.get(preset_name)
+        if not preset:
+            return
+
+        print(f"Applying preset: {preset_name}")
+        
+        # Check if it's an animation (list) or static pose (dict)
+        if isinstance(preset, list):
+            self.run_animation(preset, 0)
+        else:
+            self.apply_pose(preset)
+
+    def run_animation(self, sequence, step_index):
+        """Run a sequence of poses."""
+        if not self.running or step_index >= len(sequence):
+            return
+            
+        duration, pose = sequence[step_index]
+        self.apply_pose(pose)
+        
+        # Schedule next step
+        self.root.after(duration, lambda: self.run_animation(sequence, step_index + 1))
+
+    def apply_pose(self, pose):
+        """Apply a single static pose dictionary."""
+        for arm, joints in pose.items():
+            for joint, angle in joints.items():
+                # Get limits for this specific servo
+                servo_type = ARM_CONFIG.get(arm)
+                min_limit, max_limit = 0, 180 # Default
+                if servo_type and joint in SERVO_LIMITS[servo_type]:
+                    min_limit, max_limit = SERVO_LIMITS[servo_type][joint]
+
+                # Clamp angle
+                safe_angle = max(min_limit, min(max_limit, angle))
+                if safe_angle != angle:
+                    print(f"Warning: Request {angle} clamped to {safe_angle} for {arm} {joint}")
+                
+                # Update internal state
+                self.servo_angles[arm][joint] = safe_angle
+
+                # Send to hardware
+                if self.servo:
+                    try:
+                        channel = SERVO_MAP[arm][joint]
+                        self.servo.move_servo_position(channel, safe_angle)
+                    except Exception as e:
+                        print(f"Error moving {arm} {joint}: {e}")
+            
+            # Update all widgets to reflect new preset angles
+            for widget in self.widgets:
+                if widget.arm_name in pose and widget.servo_name in pose[widget.arm_name]:
+                    # This widget was affected by the preset
+                    new_angle = self.servo_angles[widget.arm_name][widget.servo_name]
+                    widget.set_angle(new_angle)
+
+    def quit_app(self, event=None):
+        """Cleanly exit the application."""
+        print("Quitting application...")
+        self.running = False
+        self.cleanup_servos()
+        
+        if hasattr(self, 'headset'):
+            self.headset.stop()
+        if hasattr(self, 'eye_tracker') and self.eye_tracker:
+            self.eye_tracker.stop()
+            
+        self.root.quit()
+        self.root.destroy()
+
+    def cleanup_servos(self):
+        """Stop all servo PWM signals to prevent erratic behavior."""
+        if self.servo:
+            print("Cleaning up servos...")
+            try:
+                self.servo.sleep()  # Put PCA9685 to sleep - stops all PWM
+                print("Servos put to sleep (PWM stopped).")
+            except Exception as e:
+                print(f"Error during cleanup: {e}")
+            finally:
+                self.servo = None # Prevent multiple cleanups
+
     def __del__(self):
+        self.cleanup_servos()
         if hasattr(self, 'headset'):
             self.headset.stop()
         if hasattr(self, 'eye_tracker') and self.eye_tracker:
             self.eye_tracker.stop()
 
+def on_closing(app, root):
+    """Handle window close."""
+    app.quit_app()
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = ServoGUI(root)
+    
+    # Register cleanup
+    atexit.register(app.cleanup_servos)
+    
+    # Handle window close button
+    root.protocol("WM_DELETE_WINDOW", lambda: on_closing(app, root))
+    
+    # Handle Ctrl+C and SIGTERM
+    def signal_handler(sig, frame):
+        on_closing(app, root)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     root.mainloop()

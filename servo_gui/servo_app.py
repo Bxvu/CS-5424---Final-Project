@@ -395,6 +395,18 @@ class ServoGUI:
                 (500, {"RightArm": {"Shoulder": 45, "Elbow": 0}, "LeftArm": {"Shoulder": 45, "Elbow": 0}}),
                 (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90}, "LeftArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90}}),
             ],
+            "Throw (1. Prepare)": {
+                "RightArm": {"Shoulder": 30, "Elbow": 120, "Wrist": 90, "Gripper": -50}, # Shoulder > 20, Gripper > -50
+            },
+            "Throw (2. Load)": {
+                "RightArm": {"Shoulder": 30, "Elbow": 120, "Wrist": 90, "Gripper": 45}, # Close gripper on object
+            },
+            "Throw (3. Launch)": [
+                (100, {"RightArm": {"Shoulder": 80, "Elbow": 80}}), # Accelerate
+                (150, {"RightArm": {"Shoulder": 105, "Elbow": 50, "Gripper": 45}}), # Swing (Keep Closed)
+                (150, {"RightArm": {"Shoulder": 110, "Elbow": 45, "Gripper": -50}}), # Release (Open at end)
+                (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90, "Gripper": -50}}) # Return Home
+            ],
         }
 
         # Create gaze-selectable preset widgets

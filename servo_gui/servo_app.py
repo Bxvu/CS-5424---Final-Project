@@ -21,6 +21,14 @@ except ImportError:
     print("WARNING: pi_servo_hat not found. Running in simulation mode.")
     HAS_HARDWARE = False
 
+# Try to import LED Stick
+try:
+    import qwiic_led_stick
+    HAS_LED_STICK = True
+except ImportError:
+    print("WARNING: qwiic_led_stick not found. LED attention meter disabled.")
+    HAS_LED_STICK = False
+
 # Servo Channel Mapping
 SERVO_MAP = {
     "LeftArm": {
@@ -62,6 +70,104 @@ ARM_CONFIG = {
     "RightArm": "Black"
 }
 
+class AttentionLEDMeter:
+    """LED Stick meter for displaying attention/focus levels"""
+    def __init__(self):
+        self.led_stick = None
+        self.enabled = False
+        
+        if HAS_LED_STICK:
+            try:
+                self.led_stick = qwiic_led_stick.QwiicLEDStick()
+                if self.led_stick.begin():
+                    print("LED Attention Meter initialized successfully!")
+                    self.led_stick.LED_off()  # Clear all LEDs
+                    self.enabled = True
+                else:
+                    print("WARNING: Could not connect to LED Stick")
+            except Exception as e:
+                print(f"WARNING: LED Stick initialization failed: {e}")
+        
+        self.num_leds = 10
+        self.max_value = 100  # Attention is 0-100
+        self.last_displayed = -1  # Track last value to avoid unnecessary updates
+        
+    def update(self, attention_value):
+        """
+        Update LED display based on attention value (0-100)
+        
+        Args:
+            attention_value: Current attention level (0-100)
+        """
+        if not self.enabled or not self.led_stick:
+            return
+        
+        # Clamp value
+        attention_value = max(0, min(100, attention_value))
+        
+        # Calculate number of LEDs to light (0-10)
+        num_leds_lit = int((attention_value / self.max_value) * self.num_leds)
+        
+        # Ensure at least 1 LED if attention > 0
+        if attention_value > 0 and num_leds_lit == 0:
+            num_leds_lit = 1
+        
+        # Only update if value changed significantly
+        if num_leds_lit == self.last_displayed:
+            return
+        
+        self.last_displayed = num_leds_lit
+        
+        try:
+            # Clear all LEDs first
+            self.led_stick.LED_off()
+            
+            # Light up LEDs with gradient colors
+            for i in range(num_leds_lit):
+                # Color gradient: Red (low) -> Yellow (medium) -> Green (high)
+                if i < 3:
+                    # Red (low attention)
+                    red, green, blue = 255, 0, 0
+                elif i < 7:
+                    # Yellow (medium attention)
+                    red, green, blue = 255, 255, 0
+                else:
+                    # Green (high attention)
+                    red, green, blue = 0, 255, 0
+                
+                # LEDs are indexed 1-10
+                self.led_stick.set_single_LED_color(i + 1, red, green, blue)
+                
+        except Exception as e:
+            print(f"Error updating LED Stick: {e}")
+    
+    def clear(self):
+        """Turn off all LEDs"""
+        if self.enabled and self.led_stick:
+            try:
+                self.led_stick.LED_off()
+                self.last_displayed = -1
+            except Exception as e:
+                print(f"Error clearing LED Stick: {e}")
+    
+    def test_pattern(self):
+        """Run a test pattern on the LED stick"""
+        if not self.enabled or not self.led_stick:
+            return
+        
+        print("Running LED test pattern...")
+        try:
+            # Fill up from 0 to 100
+            for val in range(0, 101, 10):
+                self.update(val)
+                time.sleep(0.3)
+            
+            time.sleep(0.5)
+            self.clear()
+            print("LED test complete!")
+        except Exception as e:
+            print(f"Error in test pattern: {e}")
+
 class ServoGUI:
     def __init__(self, root):
         self.root = root
@@ -70,6 +176,12 @@ class ServoGUI:
         self.root.attributes('-fullscreen', True)
         self.root.bind("<Escape>", self.quit_app) # Exit on Escape
         self.running = True
+        
+        # Initialize LED Attention Meter
+        self.led_meter = AttentionLEDMeter()
+        if self.led_meter.enabled:
+            # Run test pattern on startup
+            self.root.after(1000, self.led_meter.test_pattern)
         
         # Initialize Servo Hat
         self.servo = None
@@ -154,8 +266,11 @@ class ServoGUI:
         self.signal_quality_label = tk.Label(self.info_frame, text="Signal Quality: 0", font=("Arial", 12))
         self.signal_quality_label.pack(side="left", expand=True)
 
-        # Attention Display
-        self.attention_label = tk.Label(self.info_frame, text="Attention: 0", font=("Arial", 12))
+        # Attention Display (enhanced with LED indicator)
+        attention_text = "Attention: 0"
+        if self.led_meter.enabled:
+            attention_text += " [LED Meter Active]"
+        self.attention_label = tk.Label(self.info_frame, text=attention_text, font=("Arial", 12))
         self.attention_label.pack(side="left", expand=True)
 
         # Toggle Button (gaze-selectable)
@@ -261,9 +376,18 @@ class ServoGUI:
     def update_loop(self):
         if not self.running:
             return
+        
         # Get current attention level
         attention = self.headset.get_attention()
-        self.attention_label.config(text=f"Attention: {attention}")
+        
+        # Update attention label
+        attention_text = f"Attention: {attention}"
+        if self.led_meter.enabled:
+            attention_text += " [LED]"
+        self.attention_label.config(text=attention_text)
+        
+        # Update LED Meter based on attention level
+        self.led_meter.update(attention)
         
         # Update Eye Tracking
         if self.eye_tracker and self.eye_tracker.running:
@@ -504,6 +628,9 @@ class ServoGUI:
         self.running = False
         self.cleanup_servos()
         
+        # Clear LED meter
+        self.led_meter.clear()
+        
         if hasattr(self, 'headset'):
             self.headset.stop()
         if hasattr(self, 'eye_tracker') and self.eye_tracker:
@@ -526,6 +653,7 @@ class ServoGUI:
 
     def __del__(self):
         self.cleanup_servos()
+        self.led_meter.clear()
         if hasattr(self, 'headset'):
             self.headset.stop()
         if hasattr(self, 'eye_tracker') and self.eye_tracker:

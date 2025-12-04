@@ -10,7 +10,8 @@ import sys
 import os
 import time
 import random
-import threading
+import signal
+import atexit
 
 # Add parent directory to path to import from servo_gui
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'servo_gui'))
@@ -220,8 +221,9 @@ class RockPaperScissorsGame:
         self.root = root
         self.root.title("Rock Paper Scissors - Brain Control")
         self.root.attributes('-fullscreen', True)
-        self.root.bind("<Escape>", lambda e: self.root.attributes("-fullscreen", False))
+        self.root.bind("<Escape>", self.quit_app)  # Exit on Escape
         self.root.configure(bg="#1a1a2e")
+        self.running = True
         
         # Game state
         self.human_choice = None
@@ -233,7 +235,14 @@ class RockPaperScissorsGame:
         if HAS_HARDWARE:
             try:
                 self.servo = pi_servo_hat.PiServoHat()
-                self.servo.restart()
+                # Ensure clean startup: sleep first, then restart
+                try:
+                    self.servo.sleep()  # Stop any existing PWM
+                    time.sleep(0.1)
+                except:
+                    pass
+                self.servo.restart()  # Re-initialize cleanly
+                time.sleep(0.2)  # Let PWM stabilize
                 print("Servo Hat Initialized.")
                 self._set_arm_position("LeftArm", NEUTRAL_POSITION)
                 self._set_arm_position("RightArm", NEUTRAL_POSITION)
@@ -282,7 +291,7 @@ class RockPaperScissorsGame:
         # Title
         self.title_label = tk.Label(
             self.main_frame, 
-            text="🎮 ROCK PAPER SCISSORS 🎮",
+            text="ROCK PAPER SCISSORS",
             font=("Arial", 36, "bold"),
             bg="#1a1a2e",
             fg="#eee"
@@ -329,9 +338,9 @@ class RockPaperScissorsGame:
         self.choice_widgets = {}
         
         choices = [
-            ("rock", "🪨", "#e74c3c"),      # Red
-            ("paper", "📄", "#3498db"),     # Blue
-            ("scissors", "✂️", "#f39c12")   # Orange
+            ("rock", "R", "#e74c3c"),        # Red
+            ("paper", "P", "#3498db"),       # Blue
+            ("scissors", "S", "#f39c12")     # Orange
         ]
         
         for choice_name, emoji, color in choices:
@@ -431,25 +440,22 @@ class RockPaperScissorsGame:
         human = self.human_choice
         computer = self.computer_choice
         
-        # Get emoji for display
-        emojis = {"rock": "🪨", "paper": "📄", "scissors": "✂️"}
-        
         # Determine result
         if human == computer:
             result = "TIE"
-            result_text = "🤝 IT'S A TIE! 🤝"
+            result_text = "IT'S A TIE!"
             result_color = "#f39c12"
             human_wins = None
         elif (human == "rock" and computer == "scissors") or \
              (human == "paper" and computer == "rock") or \
              (human == "scissors" and computer == "paper"):
             result = "WIN"
-            result_text = "🎉 YOU WIN! 🎉"
+            result_text = "YOU WIN!"
             result_color = "#2ecc71"
             human_wins = True
         else:
             result = "LOSE"
-            result_text = "😢 YOU LOSE 😢"
+            result_text = "YOU LOSE"
             result_color = "#e74c3c"
             human_wins = False
         
@@ -458,7 +464,7 @@ class RockPaperScissorsGame:
         self.result_frame.pack(pady=30, fill="both", expand=True)
         
         self.result_label.config(text=result_text, fg=result_color)
-        self.matchup_label.config(text=f"You: {emojis[human]} {human.upper()}  vs  Computer: {emojis[computer]} {computer.upper()}")
+        self.matchup_label.config(text=f"You: {human.upper()}  vs  Computer: {computer.upper()}")
         
         # If human wins, start countdown and exit
         if human_wins:
@@ -477,20 +483,30 @@ class RockPaperScissorsGame:
         self.root.after(1000, lambda: self._start_exit_countdown(seconds - 1))
     
     def _cleanup_and_exit(self):
-        """Clean up resources and exit"""
-        print("Cleaning up and exiting...")
-        
-        # Return arms to neutral
+        """Clean up resources and exit (called after countdown)"""
+        self.quit_app()
+    
+    def cleanup_servos(self):
+        """Stop all servo PWM signals to prevent erratic behavior."""
         if self.servo:
-            self._set_arm_position("LeftArm", NEUTRAL_POSITION)
-            self._set_arm_position("RightArm", NEUTRAL_POSITION)
+            print("Cleaning up servos...")
+            try:
+                self.servo.sleep()  # Put PCA9685 to sleep - stops all PWM
+                print("Servos put to sleep (PWM stopped).")
+            except Exception as e:
+                print(f"Error during cleanup: {e}")
+            finally:
+                self.servo = None  # Prevent multiple cleanups
+    
+    def quit_app(self, event=None):
+        """Cleanly exit the application."""
+        print("Quitting application...")
+        self.running = False
+        self.cleanup_servos()
         
-        # Stop headset
-        if self.headset:
+        if hasattr(self, 'headset') and self.headset:
             self.headset.stop()
-        
-        # Stop eye tracker
-        if self.eye_tracker:
+        if hasattr(self, 'eye_tracker') and self.eye_tracker:
             self.eye_tracker.stop()
         
         self.root.quit()
@@ -498,6 +514,8 @@ class RockPaperScissorsGame:
     
     def update_loop(self):
         """Main update loop"""
+        if not self.running:
+            return
         if self.game_over:
             self.root.after(100, self.update_loop)
             return
@@ -536,6 +554,7 @@ class RockPaperScissorsGame:
         self.root.after(50, self.update_loop)
     
     def __del__(self):
+        self.cleanup_servos()
         if hasattr(self, 'headset') and self.headset:
             self.headset.stop()
         if hasattr(self, 'eye_tracker') and self.eye_tracker:
@@ -546,8 +565,26 @@ class RockPaperScissorsGame:
 # ENTRY POINT
 # =============================================================================
 
+def on_closing(app, root):
+    """Handle window close."""
+    app.quit_app()
+
 if __name__ == "__main__":
     root = tk.Tk()
     game = RockPaperScissorsGame(root)
+    
+    # Register cleanup for normal exit
+    atexit.register(game.cleanup_servos)
+    
+    # Handle window close button
+    root.protocol("WM_DELETE_WINDOW", lambda: on_closing(game, root))
+    
+    # Handle Ctrl+C and SIGTERM
+    def signal_handler(sig, frame):
+        on_closing(game, root)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     root.mainloop()
 

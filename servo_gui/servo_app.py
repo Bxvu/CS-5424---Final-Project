@@ -45,8 +45,8 @@ SERVO_LIMITS = {
         "Base": (-50, 130),
         "Shoulder": (20, 110),
         "Elbow": (-50, 130),
-        "Wrist": (-50, 130),
-        "Gripper": (-50, 45)
+        "Wrist": (-50, 130), # 90 middle
+        "Gripper": (-50, 45) 
     },
     "Orange": {
         "Base": (-50, 130),
@@ -406,6 +406,13 @@ class ServoGUI:
                 (150, {"RightArm": {"Shoulder": 105, "Elbow": 50, "Gripper": 45}}), # Swing (Keep Closed)
                 (150, {"RightArm": {"Shoulder": 110, "Elbow": 45, "Gripper": -50}}), # Release (Open at end)
                 (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90, "Gripper": -50}}) # Return Home
+            ],
+            "Kick (1. Load)": {
+                "RightArm": {"Shoulder": 90, "Elbow": -50, "Wrist": 90, "Gripper": 45}, # Low and bent back
+            },
+            "Kick (2. Strike)": [
+                (200, {"RightArm": {"Shoulder": 70, "Elbow": 30}}), # Fast swing up and out
+                (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90, "Gripper": 0}}) # Return Home
             ],
         }
 

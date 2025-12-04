@@ -15,6 +15,10 @@ class ServoWidget(tk.Frame):
         self.hover_side = None # 'left' or 'right'
         self.last_trigger_time = 0
         
+        self.min_limit = 0
+        self.max_limit = 180
+        self.current_angle = 90
+        
         # UI Setup
         self.label = tk.Label(self, text=f"{servo_name}", font=("Arial", 10, "bold"))
         self.label.pack(pady=2)
@@ -31,11 +35,24 @@ class ServoWidget(tk.Frame):
         self.text_left = self.canvas.create_text(0, 0, text="-", font=("Arial", 20))
         self.text_right = self.canvas.create_text(0, 0, text="+", font=("Arial", 20))
         
+        # Progress bar
+        self.progress_bar = self.canvas.create_rectangle(0, 0, 0, 0, fill="#4CAF50", outline="")
+        
         # Bind events
         self.canvas.bind("<Configure>", self.on_resize)
         self.canvas.bind("<Enter>", self.on_enter)
         self.canvas.bind("<Leave>", self.on_leave)
         self.canvas.bind("<Motion>", self.on_motion)
+
+    def set_limits(self, min_limit, max_limit):
+        self.min_limit = min_limit
+        self.max_limit = max_limit
+        
+    def set_angle(self, angle):
+        self.current_angle = angle
+        # If currently hovering, re-evaluate visuals in case we hit a limit
+        if self.is_hovering:
+            self.update_visuals()
 
     def on_resize(self, event):
         w, h = event.width, event.height
@@ -43,6 +60,8 @@ class ServoWidget(tk.Frame):
         self.canvas.coords(self.rect_right, w/2, 0, w, h)
         self.canvas.coords(self.text_left, w/4, h/2)
         self.canvas.coords(self.text_right, 3*w/4, h/2)
+        # Progress bar at bottom
+        self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
         
     def on_enter(self, event):
         self.is_hovering = True
@@ -88,20 +107,42 @@ class ServoWidget(tk.Frame):
         
     def update_visuals(self):
         if self.hover_side == 'left':
-            self.canvas.itemconfig(self.rect_left, fill="#ffcccc") # Light red
+            # Check min limit
+            if self.current_angle <= self.min_limit:
+                self.canvas.itemconfig(self.rect_left, fill="white") # No highlight
+            else:
+                self.canvas.itemconfig(self.rect_left, fill="#ffcccc") # Light red
             self.canvas.itemconfig(self.rect_right, fill="white")
-        else:
+        elif self.hover_side == 'right':
             self.canvas.itemconfig(self.rect_left, fill="white")
-            self.canvas.itemconfig(self.rect_right, fill="#ccffcc") # Light green
+            # Check max limit
+            if self.current_angle >= self.max_limit:
+                self.canvas.itemconfig(self.rect_right, fill="white") # No highlight
+            else:
+                self.canvas.itemconfig(self.rect_right, fill="#ccffcc") # Light green
+        else:
+            self.reset_visuals()
             
     def reset_visuals(self):
         self.canvas.itemconfig(self.rect_left, fill="white")
         self.canvas.itemconfig(self.rect_right, fill="white")
+        # Reset progress bar
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
         
     def process_frame(self, attention_level):
         if self.is_hovering and self.hover_side:
+            elapsed = time.time() - self.hover_start_time
+            
+            # Update progress bar
+            w = self.canvas.winfo_width()
+            h = self.canvas.winfo_height()
+            progress_width = min(w, (elapsed / self.dwell_time) * w)
+            self.canvas.coords(self.progress_bar, 0, h - 5, progress_width, h)
+
             # Buffer check: wait for dwell_time before acting
-            if time.time() - self.hover_start_time < self.dwell_time:
+            if elapsed < self.dwell_time:
                 return
 
             # Threshold check - only move if attention is sufficient

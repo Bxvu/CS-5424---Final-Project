@@ -87,15 +87,18 @@ class PresetWidget(tk.Frame):
             
             # Check if dwell time reached
             if elapsed >= self.dwell_time:
-                self.triggered = True
-                # Flash green to indicate activation
-                self.canvas.itemconfig(self.rect, fill="#4CAF50")
-                
-                if self.callback:
-                    self.callback(self.preset_name)
-                
-                # Reset after a short delay
-                self.after(300, self.reset_visuals)
+                # Threshold check - only trigger if attention is sufficient
+                THRESHOLD = 35
+                if attention_level > THRESHOLD:
+                    self.triggered = True
+                    # Flash green to indicate activation
+                    self.canvas.itemconfig(self.rect, fill="#4CAF50")
+                    
+                    if self.callback:
+                        self.callback(self.preset_name)
+                    
+                    # Reset after a short delay
+                    self.after(300, self.reset_visuals)
 
 
 class ToggleWidget(tk.Frame):
@@ -191,12 +194,15 @@ class ToggleWidget(tk.Frame):
             
             # Check if dwell time reached
             if elapsed >= self.dwell_time:
-                self.triggered = True
-                # Flash to indicate activation
-                self.canvas.itemconfig(self.rect, fill="#4CAF50")
-                
-                if self.callback:
-                    self.callback()
-                
-                # Reset after a short delay
-                self.after(300, self.reset_visuals)
+                # Threshold check - only trigger if attention is sufficient
+                THRESHOLD = 35
+                if attention_level > THRESHOLD:
+                    self.triggered = True
+                    # Flash to indicate activation
+                    self.canvas.itemconfig(self.rect, fill="#4CAF50")
+                    
+                    if self.callback:
+                        self.callback()
+                    
+                    # Reset after a short delay
+                    self.after(300, self.reset_visuals)

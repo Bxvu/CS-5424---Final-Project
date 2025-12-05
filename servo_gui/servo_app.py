@@ -54,11 +54,11 @@ SERVO_LIMITS = {
         "Shoulder": (20, 110),
         "Elbow": (-50, 130),
         "Wrist": (-50, 130), # 90 middle
-        "Gripper": (-50, 45) 
+        "Gripper": (-50, 50)
     },
     "Orange": {
         "Base": (-50, 130),
-        "Shoulder": (10, 60),
+        "Shoulder": (10, 100),
         "Elbow": (-50, 130),
         "Wrist": (-50, 130), # 55 middle
         "Gripper": (-20, 73)
@@ -68,6 +68,14 @@ SERVO_LIMITS = {
 ARM_CONFIG = {
     "LeftArm": "Orange",
     "RightArm": "Black"
+}
+
+# Initial Pose Configuration
+# If defined, servos will move to these angles on startup.
+# If a joint is missing here, it defaults to the midpoint of its limits.
+STARTUP_POSE = {
+    "LeftArm": {"Base": 60, "Shoulder": 30, "Elbow": 70, "Wrist": 55, "Gripper": 0},
+    "RightArm": {"Base": 10, "Shoulder": 50, "Elbow": 70, "Wrist": 90, "Gripper": 0}
 }
 
 class AttentionLEDMeter:
@@ -236,21 +244,31 @@ class ServoGUI:
             self.servo_angles[arm] = {}
             for joint in ["Base", "Shoulder", "Elbow", "Wrist", "Gripper"]:
                 self.servo_angles[arm][joint] = 90
-                # Initialize hardware to midpoint if possible
+                # Initialize hardware to midpoint or STARTUP_POSE
                 if self.servo:
                     try:
-                        # Get limits
-                        servo_type = ARM_CONFIG.get(arm)
-                        min_limit, max_limit = 0, 180
-                        if servo_type and joint in SERVO_LIMITS[servo_type]:
-                            min_limit, max_limit = SERVO_LIMITS[servo_type][joint]
+                        # Determine initial angle
+                        initial_angle = None
                         
-                        # Calculate midpoint
-                        midpoint = int((min_limit + max_limit) / 2)
-                        self.servo_angles[arm][joint] = midpoint
+                        # Check STARTUP_POSE first
+                        if arm in STARTUP_POSE and joint in STARTUP_POSE[arm]:
+                            initial_angle = STARTUP_POSE[arm][joint]
+                        
+                        # Fallback to midpoint
+                        if initial_angle is None:
+                            # Get limits
+                            servo_type = ARM_CONFIG.get(arm)
+                            min_limit, max_limit = 0, 180
+                            if servo_type and joint in SERVO_LIMITS[servo_type]:
+                                min_limit, max_limit = SERVO_LIMITS[servo_type][joint]
+                            
+                            # Calculate midpoint
+                            initial_angle = int((min_limit + max_limit) / 2)
+                        
+                        self.servo_angles[arm][joint] = initial_angle
                         
                         channel = SERVO_MAP[arm][joint]
-                        self.servo.move_servo_position(channel, midpoint)
+                        self.servo.move_servo_position(channel, initial_angle)
                     except Exception as e:
                         print(f"Failed to set initial position for {arm} {joint}: {e}")
 
@@ -538,6 +556,21 @@ class ServoGUI:
                 (200, {"RightArm": {"Shoulder": 70, "Elbow": 30}}), # Fast swing up and out
                 (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90, "Gripper": 0}}) # Return Home
             ],
+            "Pass Object (L to R)": [
+                (2000, {"LeftArm": {"Base": 60, "Shoulder": 90, "Elbow": -20, "Wrist": 55, "Gripper": -40}}), # Grab pose
+                (750, {"LeftArm": {"Gripper": 70}}), # Close gripper
+                (100, {"LeftArm": {"Shoulder": 30, "Elbow": 70}}), # Lift
+                (1500, {"LeftArm": {"Base": -30}}), # Rotate to R
+                (1500, {"RightArm": {"Base": 90, "Shoulder": 90, "Elbow": 80, "Wrist": 90, "Gripper": -40}}), # R Ready
+                (1000, {"LeftArm": {"Elbow": 35}}), # Lower to R
+                (500, {"RightArm": {"Gripper": 47}}), # R Grip
+                (500, {"LeftArm": {"Gripper": 0}}), # L Release
+                (1000, {"LeftArm": {"Base": 60, "Elbow": 70}}), # L Retract
+                # (1500, {"RightArm": {"Base": 10, "Elbow": -10}}), # R Rotate to Drop
+                # (500, {"RightArm": {"Gripper": -30}}), # R Release
+                # (1000, {"RightArm": {"Shoulder": 50, "Elbow": -50}}), # R Nudge/Clear
+                # (1000, {"RightArm": {"Elbow": 80}}), # R Straighten
+            ]
         }
 
         # Create gaze-selectable preset widgets
@@ -576,21 +609,132 @@ class ServoGUI:
         if isinstance(preset, list):
             self.run_animation(preset, 0)
         else:
-            self.apply_pose(preset)
+            # For static poses, we can also interpolate for smoothness
+            self.interpolate_pose(preset, 1000) # Default 1s for static poses
 
     def run_animation(self, sequence, step_index):
-        """Run a sequence of poses."""
+        """Run a sequence of poses with interpolation."""
         if not self.running or step_index >= len(sequence):
             return
             
         duration, pose = sequence[step_index]
-        self.apply_pose(pose)
         
-        # Schedule next step
-        self.root.after(duration, lambda: self.run_animation(sequence, step_index + 1))
+        # Use interpolate_pose with a callback for the next step
+        self.interpolate_pose(pose, duration, lambda: self.run_animation(sequence, step_index + 1))
+
+    def interpolate_pose(self, target_pose, duration_ms, callback=None):
+        """
+        Smoothly interpolate from current angles to target_pose over duration_ms.
+        
+        Args:
+            target_pose: dict of {arm: {joint: angle}}
+            duration_ms: time in ms to complete the move
+            callback: function to call when finished
+        """
+        if duration_ms <= 0:
+            self.apply_pose(target_pose)
+            if callback:
+                callback()
+            return
+
+        # 1. Calculate start and end states for all affected joints
+        start_angles = {}
+        end_angles = {}
+        changes = {}
+        
+        for arm, joints in target_pose.items():
+            for joint, target_angle in joints.items():
+                # Get current angle
+                current = self.servo_angles[arm][joint]
+                
+                # Get limits and clamp target
+                servo_type = ARM_CONFIG.get(arm)
+                min_limit, max_limit = 0, 180
+                if servo_type and joint in SERVO_LIMITS[servo_type]:
+                    min_limit, max_limit = SERVO_LIMITS[servo_type][joint]
+                
+                safe_target = max(min_limit, min(max_limit, target_angle))
+                
+                key = (arm, joint)
+                start_angles[key] = current
+                end_angles[key] = safe_target
+                changes[key] = safe_target - current
+
+        # 2. Setup interpolation loop
+        steps = int(duration_ms / 20) # Update every 20ms
+        if steps < 1: steps = 1
+        
+        self._interpolation_step(start_angles, changes, steps, 0, callback)
+
+    def _interpolation_step(self, start_angles, changes, total_steps, current_step, callback):
+        """Internal recursive step for interpolation."""
+        if not self.running:
+            return
+
+        current_step += 1
+        progress = current_step / total_steps
+        
+        # Use Linear Interpolation to avoid "slow down" at the end which causes stiction
+        ease = progress 
+        
+        # Apply intermediate angles
+        for key, start_angle in start_angles.items():
+            arm, joint = key
+            total_change = changes[key]
+            
+            new_angle = start_angle + (total_change * ease)
+            
+            int_angle = int(new_angle)
+            
+            # Only update if changed significantly to reduce bus traffic
+            if int_angle != int(self.servo_angles[arm][joint]):
+                self.servo_angles[arm][joint] = int_angle
+                
+                # Send to hardware
+                if self.servo:
+                    try:
+                        channel = SERVO_MAP[arm][joint]
+                        self.servo.move_servo_position(channel, int_angle)
+                    except Exception as e:
+                        print(f"Error moving {arm} {joint}: {e}")
+                
+                # Update widgets
+                for widget in self.widgets:
+                    if widget.arm_name == arm and widget.servo_name == joint:
+                        widget.set_angle(int_angle)
+                        break
+
+        if current_step < total_steps:
+            self.root.after(20, lambda: self._interpolation_step(start_angles, changes, total_steps, current_step, callback))
+        else:
+            # FORCE FINAL UPDATE
+            # Ensure final values are set exactly and SENT to hardware
+            for key, end_angle in start_angles.items(): # Iterate keys
+                arm, joint = key
+                target = start_angles[key] + changes[key] # Re-calculate exact target
+                int_target = int(target)
+                
+                self.servo_angles[arm][joint] = int_target
+                
+                # Force send to hardware to ensure we reach the goal
+                if self.servo:
+                    try:
+                        channel = SERVO_MAP[arm][joint]
+                        self.servo.move_servo_position(channel, int_target)
+                    except Exception as e:
+                        print(f"Error moving {arm} {joint}: {e}")
+                
+                # Final widget update
+                for widget in self.widgets:
+                    if widget.arm_name == arm and widget.servo_name == joint:
+                        widget.set_angle(int_target)
+                        break
+            
+            if callback:
+                callback()
 
     def apply_pose(self, pose):
-        """Apply a single static pose dictionary."""
+        """Apply a single static pose dictionary immediately (no interpolation)."""
         for arm, joints in pose.items():
             for joint, angle in joints.items():
                 # Get limits for this specific servo
@@ -601,8 +745,6 @@ class ServoGUI:
 
                 # Clamp angle
                 safe_angle = max(min_limit, min(max_limit, angle))
-                if safe_angle != angle:
-                    print(f"Warning: Request {angle} clamped to {safe_angle} for {arm} {joint}")
                 
                 # Update internal state
                 self.servo_angles[arm][joint] = safe_angle
@@ -626,6 +768,32 @@ class ServoGUI:
         """Cleanly exit the application."""
         print("Quitting application...")
         self.running = False
+        
+        # Return to startup pose if defined
+        if STARTUP_POSE:
+            print("Returning to startup pose...")
+            try:
+                # Use interpolate for smooth exit if possible, but we need to block or wait
+                # Since we are quitting, blocking sleep is acceptable/safer than async
+                # But let's use apply_pose (fast move) + sleep to ensure it gets there
+                # Or better: use interpolate logic manually? 
+                # Let's stick to the plan: apply_pose + sleep.
+                # Actually, let's try to be smooth: interpolate needs the loop.
+                # We can just run a mini-loop here or just use apply_pose.
+                # Given the user likes smooth, let's try to use the existing interpolate 
+                # but we need to delay the destroy.
+                
+                # Simpler approach for reliability: Apply pose (jumps to target) -> Sleep
+                self.apply_pose(STARTUP_POSE)
+                
+                # Process pending events to ensure command is sent
+                self.root.update()
+                
+                # Wait for physical movement
+                time.sleep(1.5)
+            except Exception as e:
+                print(f"Error returning to startup pose: {e}")
+
         self.cleanup_servos()
         
         # Clear LED meter

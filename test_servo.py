@@ -30,12 +30,12 @@ SERVO_LIMITS = {
         "Base": (-50, 130),
         "Shoulder": (20, 110),
         "Elbow": (-50, 130),
-        "Wrist": (-50, 130),
-        "Gripper": (-50, 45)
+        "Wrist": (-50, 130), # 90 middle
+        "Gripper": (-50, 50)
     },
     "Orange": {
         "Base": (-50, 130),
-        "Shoulder": (10, 60),
+        "Shoulder": (10, 100),
         "Elbow": (-50, 130),
         "Wrist": (-50, 130), # 55 middle
         "Gripper": (-20, 73)

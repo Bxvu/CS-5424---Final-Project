@@ -4,10 +4,12 @@ import time
 
 class PresetWidget(tk.Frame):
     """A gaze-selectable preset button widget."""
-    def __init__(self, parent, preset_name, dwell_time=1.5, callback=None):
+    def __init__(self, parent, preset_name, dwell_time=1.5, repeating=False, repeat_rate=0.5, callback=None):
         super().__init__(parent, borderwidth=2, relief="groove")
         self.preset_name = preset_name
         self.dwell_time = dwell_time
+        self.repeating = repeating
+        self.repeat_rate = repeat_rate
         self.callback = callback
         
         self.is_hovering = False
@@ -82,9 +84,8 @@ class PresetWidget(tk.Frame):
         dt = current_time - self.last_update_time
         self.last_update_time = current_time
         
-        if self.triggered:
-            # Wait for user to look away before resetting trigger state completely?
-            # Or just reset progress
+        if self.triggered and not self.repeating:
+            # Wait for user to look away before resetting trigger state completely
             if not self.is_hovering:
                 self.triggered = False
                 self.progress_seconds = 0
@@ -111,16 +112,26 @@ class PresetWidget(tk.Frame):
         # Check trigger
         if self.progress_seconds >= self.dwell_time:
             # Threshold check
-            THRESHOLD = 1 # Lower threshold for now as people found it hard
+            THRESHOLD = 1 
             if attention_level > THRESHOLD:
-                self.triggered = True
                 self.canvas.itemconfig(self.rect, fill="#4CAF50")
                 if self.callback:
                     self.callback(self.preset_name)
+                
+                if self.repeating:
+                    # Continuous Mode: Reset progress slightly to re-trigger after repeat_rate
+                    # We subtract repeat_rate from dwell_time to find the new progress base
+                    self.progress_seconds = max(0, self.dwell_time - self.repeat_rate)
+                    # Don't set self.triggered = True, allow immediate re-accumulation
                     
-                # Reset progress after trigger
-                self.progress_seconds = 0
-                self.after(300, lambda: self.reset_visuals(partial=False))
+                    # Visual feedback blink?
+                    self.after(100, self.update_visuals) # Briefly go back to blue
+                else:
+                    # Single Shot Mode
+                    self.triggered = True
+                    # Reset progress after trigger
+                    self.progress_seconds = 0
+                    self.after(300, lambda: self.reset_visuals(partial=False))
 
 
 class ToggleWidget(tk.Frame):

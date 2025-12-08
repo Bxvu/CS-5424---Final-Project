@@ -558,7 +558,44 @@ class ServoGUI:
             # PRESET MODES
             if self.in_category_mode:
                 # SUBMENU MODE
+                # Get Canvas bounds for visibility check
+                try:
+                    c_y_min = self.cat_canvas.winfo_rooty()
+                    c_y_max = c_y_min + self.cat_canvas.winfo_height()
+                except:
+                    c_y_min, c_y_max = 0, 99999 # Safe fallback if canvas not ready
+
                 for widget in self.category_widgets_list:
+                     # Check visibility if it's inside the scrollable area
+                     is_scrollable_item = (widget.master == self.cat_preset_frame)
+                     
+                     is_visible = True
+                     if is_scrollable_item:
+                         pwy = widget.winfo_rooty()
+                         pwh = widget.winfo_height()
+                         center_y = pwy + (pwh / 2)
+                         if center_y < c_y_min or center_y > c_y_max:
+                             is_visible = False
+                     
+                     if is_visible:
+                         wx = widget.winfo_rootx()
+                         wy = widget.winfo_rooty()
+                         ww = widget.winfo_width()
+                         wh = widget.winfo_height()
+                         
+                         if wx <= gaze_x <= wx + ww and wy <= gaze_y <= wy + wh:
+                             # Duck typing: Check if it's a ServoWidget (needs rel_x) or PresetWidget (no args)
+                             if isinstance(widget, ServoWidget):
+                                 rel_x = gaze_x - wx
+                                 widget.update_gaze(rel_x)
+                             else:
+                                 widget.update_gaze()
+                         else:
+                             widget.clear_hover()
+                     else:
+                        widget.clear_hover()
+                     
+                     # CRITICAL: Must call process_frame to update progress bars/logic!
                      widget.process_frame(attention)
             else:
                 # MAIN PRESET MENU
@@ -647,24 +684,24 @@ class ServoGUI:
                 (500, {"RightArm": {"Shoulder": 45, "Elbow": 0}, "LeftArm": {"Shoulder": 45, "Elbow": 0}}),
                 (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90}, "LeftArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90}}),
             ],
-            "Pass Object (L to R)": [
-                (2000, {"LeftArm": {"Base": 60, "Shoulder": 90, "Elbow": -20, "Wrist": 55, "Gripper": -40}}), # Grab pose
-                (750, {"LeftArm": {"Gripper": 70}}), # Close gripper
-                (200, {"LeftArm": {"Shoulder": 30, "Elbow": 60}}), # Lift
-                (500, {"LeftArm": {"Elbow": 70}}), # Lift
-                (1500, {"LeftArm": {"Base": -30}}), # Rotate to R
-                (450, {"RightArm": {"Base": 75, "Shoulder": 130, "Elbow": 130, "Wrist": 30, "Gripper": 15}}), # R Ready
-                # (1000, {"LeftArm": {"Elbow": 80}}), # Lower to R
-                (1000, {"LeftArm": {"Shoulder": 45, "Elbow": 20}}), # Lower to R
-                (2000, {"LeftArm": {"Gripper": 0}}), # L Release
-                (500, {"RightArm": {"Wrist": 90, "Gripper": 50}}), # R Grip
-                (1000, {"LeftArm": {"Base": 60, "Elbow": 70}}), # L Retract
-                (1500, {"RightArm": {"Base": 10, "Shoulder": 100, "Elbow": 110}}), # R Rotate to Drop
-                (1000, {"RightArm": {"Shoulder": 60, "Elbow": 100}}), # R Backwards
-                (500, {"RightArm": {"Elbow": -10, "Gripper": -30}}), # R Release
-                (1000, {"RightArm": {"Shoulder": 50, "Elbow": -50}}), # R Nudge/Clear
-                (1000, {"RightArm": {"Elbow": 80}}), # R Straighten
-            ]
+            # "Pass Object (L to R)": [
+            #     (2000, {"LeftArm": {"Base": 60, "Shoulder": 90, "Elbow": -20, "Wrist": 55, "Gripper": -40}}), # Grab pose
+            #     (750, {"LeftArm": {"Gripper": 70}}), # Close gripper
+            #     (200, {"LeftArm": {"Shoulder": 30, "Elbow": 60}}), # Lift
+            #     (500, {"LeftArm": {"Elbow": 70}}), # Lift
+            #     (1500, {"LeftArm": {"Base": -30}}), # Rotate to R
+            #     (450, {"RightArm": {"Base": 75, "Shoulder": 130, "Elbow": 130, "Wrist": 30, "Gripper": 15}}), # R Ready
+            #     # (1000, {"LeftArm": {"Elbow": 80}}), # Lower to R
+            #     (1000, {"LeftArm": {"Shoulder": 45, "Elbow": 20}}), # Lower to R
+            #     (2000, {"LeftArm": {"Gripper": 0}}), # L Release
+            #     (500, {"RightArm": {"Wrist": 90, "Gripper": 50}}), # R Grip
+            #     (1000, {"LeftArm": {"Base": 60, "Elbow": 70}}), # L Retract
+            #     (1500, {"RightArm": {"Base": 10, "Shoulder": 100, "Elbow": 110}}), # R Rotate to Drop
+            #     (1000, {"RightArm": {"Shoulder": 60, "Elbow": 100}}), # R Backwards
+            #     (500, {"RightArm": {"Elbow": -10, "Gripper": -30}}), # R Release
+            #     (1000, {"RightArm": {"Shoulder": 50, "Elbow": -50}}), # R Nudge/Clear
+            #     (1000, {"RightArm": {"Elbow": 80}}), # R Straighten
+            # ]
         }
 
         # Category Configuration: Grouping complex animations + Manual Controls
@@ -702,6 +739,36 @@ class ServoGUI:
                 "manual_controls": [
                     ("RightArm", "Base")
                 ]
+            },
+            "Pass Object (L to R)": {
+                "presets": {
+                    "Left - Rotate to Grab": {"LeftArm": {"Base": 60, "Shoulder": 90, "Elbow": -20, "Wrist": 55, "Gripper": -40}},
+                    "Left - Close Gripper": {"LeftArm": {"Gripper": 70}},
+                    "Left - Rotate to R": {"LeftArm": {"Base": -30, "Shoulder": 30, "Elbow": 65}},
+                    "Right - Lower to Catch": {"RightArm": {"Base": 75, "Shoulder": 130, "Elbow": 130, "Wrist": 30, "Gripper": 15}},
+                    "Left - Lower Gripper to R": {"LeftArm": {"Shoulder": 45, "Elbow": 20}},
+                    "Left - Release": [
+                        (1000, {"LeftArm": {"Gripper": 0}}),    
+                        (1000, {"LeftArm": {"Gripper": -10}}),
+                        (1500, {"LeftArm": {"Base": 60, "Elbow": 70}})
+                    ],
+                    "Right - Close Gripper": {"RightArm": {"Gripper": 50}},
+                    "Right - Rotate to Drop": {"RightArm": {"Base": 10, "Shoulder": 100, "Elbow": 110}},
+                    "Right - Release": [
+                        (1000, {"RightArm": {"Shoulder": 60, "Elbow": 100}}),
+                        (500, {"RightArm": {"Elbow": -10, "Gripper": -30}}),
+                        (1000, {"RightArm": {"Shoulder": 50, "Elbow": -50}}),
+                        (1000, {"RightArm": {"Elbow": 80}}),
+                    ],
+                },
+                "manual_controls": [
+                    ("LeftArm", "Base"),    
+                    ("LeftArm", "Elbow"),
+                    ("LeftArm", "Gripper"),
+                    ("RightArm", "Base"),
+                    ("RightArm", "Elbow"),
+                    ("RightArm", "Gripper"),
+                ]
             }
         }
 
@@ -710,19 +777,29 @@ class ServoGUI:
         self.scroll_container = tk.Frame(self.presets_frame)
         self.scroll_container.pack(fill="both", expand=True, padx=20, pady=5)
 
-        # SCROLL UP BUTTON
+        # Scroll Up
         self.scroll_up_btn = PresetWidget(
             self.scroll_container,
             "Scroll Up",
             dwell_time=0.8,
+            repeating=True,
+            repeat_rate=0.2,
             callback=lambda _: self.scroll_list(-1)
         )
-        self.scroll_up_btn.pack(fill="x", pady=2)
-        # Manually set height to be smaller
-        self.scroll_up_btn.canvas.config(height=50)
-        self.scroll_up_btn.rect = self.scroll_up_btn.canvas.find_closest(0, 0)[0] # Hacky re-find or just reuse
-        # Actually PresetWidget logic uses self.height, let's just let it be standard or slightly smaller? 
-        # The user wanted taller buttons for presets, but scroll buttons might be fine standard.
+        self.scroll_up_btn.pack(side="top", fill="x", pady=2)
+        self.scroll_up_btn.canvas.config(height=50) # Smaller height for scroll buttons
+        
+        # Scroll Down
+        self.scroll_down_btn = PresetWidget(
+            self.scroll_container,
+            "Scroll Down",
+            dwell_time=0.8,
+            repeating=True,
+            repeat_rate=0.2,
+            callback=lambda _: self.scroll_list(1)
+        )
+        self.scroll_down_btn.pack(side="bottom", fill="x", pady=2)
+        self.scroll_down_btn.canvas.config(height=50)
 
         # CANVAS AREA
         self.preset_canvas = tk.Canvas(self.scroll_container, bg="gray", highlightthickness=0)
@@ -742,15 +819,6 @@ class ServoGUI:
         self.preset_btn_frame.bind("<Configure>", self.on_frame_configure)
         self.preset_canvas.bind("<Configure>", self.on_canvas_configure)
 
-        # SCROLL DOWN BUTTON
-        self.scroll_down_btn = PresetWidget(
-            self.scroll_container,
-            "Scroll Down",
-            dwell_time=0.8,
-            callback=lambda _: self.scroll_list(1)
-        )
-        self.scroll_down_btn.pack(side="bottom", fill="x", pady=2)
-        self.scroll_down_btn.canvas.config(height=50)
 
         # Store widgets for hit testing
         self.category_widgets = [] # For category buttons
@@ -817,6 +885,10 @@ class ServoGUI:
         """Scroll manually (1 for down, -1 for up)"""
         self.preset_canvas.yview_scroll(direction, "units")
         
+    def scroll_category_list(self, direction):
+        """Scroll category presets manually"""
+        self.cat_canvas.yview_scroll(direction, "units")
+        
     def show_category_view(self, category_name):
         """Switch to categorical submenu."""
         if category_name not in self.categories:
@@ -869,17 +941,57 @@ class ServoGUI:
         content = tk.Frame(self.category_frame)
         content.pack(fill="both", expand=True, padx=10, pady=5)
         
-        left_pane = tk.Frame(content)
-        left_pane.pack(side="left", fill="both", expand=True)
+        # LEFT PANE: Scrollable Actions
+        left_pane_container = tk.Frame(content)
+        left_pane_container.pack(side="left", fill="both", expand=True)
         
+        # RIGHT PANE: Manual Controls
         right_pane = tk.Frame(content)
         right_pane.pack(side="right", fill="both", expand=True)
         
-        # 1. Category Presets (Left Side)
-        tk.Label(left_pane, text="Actions", font=("Arial", 14)).pack(pady=5)
+        tk.Label(left_pane_container, text="Actions", font=("Arial", 14)).pack(pady=5)
+        
+        # Category Scroll Up
+        self.cat_scroll_up = PresetWidget(
+            left_pane_container,
+            "Scroll Up",
+            dwell_time=0.8,
+            repeating=True,
+            repeat_rate=0.2,
+            callback=lambda _: self.scroll_category_list(-1)
+        )
+        self.cat_scroll_up.pack(fill="x", pady=2)
+        self.cat_scroll_up.canvas.config(height=50) # Smaller height
+        self.category_widgets_list.append(self.cat_scroll_up)
+        
+        # Category Canvas
+        self.cat_canvas = tk.Canvas(left_pane_container, bg="gray", highlightthickness=0)
+        self.cat_canvas.pack(side="top", fill="both", expand=True, pady=2)
+        
+        # Category Inner Frame
+        self.cat_preset_frame = tk.Frame(self.cat_canvas)
+        self.cat_window_id = self.cat_canvas.create_window((0, 0), window=self.cat_preset_frame, anchor="nw")
+        
+        self.cat_preset_frame.bind("<Configure>", lambda e: self.cat_canvas.configure(scrollregion=self.cat_canvas.bbox("all")))
+        self.cat_canvas.bind("<Configure>", lambda e: self.cat_canvas.itemconfig(self.cat_window_id, width=e.width))
+        
+        # Category Scroll Down
+        self.cat_scroll_down = PresetWidget(
+            left_pane_container,
+            "Scroll Down",
+            dwell_time=0.8,
+            repeating=True,
+            repeat_rate=0.2,
+            callback=lambda _: self.scroll_category_list(1)
+        )
+        self.cat_scroll_down.pack(side="bottom", fill="x", pady=2)
+        self.cat_scroll_down.canvas.config(height=50)
+        self.category_widgets_list.append(self.cat_scroll_down)
+
+        # Add Presets to Inner Frame
         for preset_name in self.current_category_presets.keys():
             pw = PresetWidget(
-                left_pane,
+                self.cat_preset_frame,
                 preset_name,
                 dwell_time=1.5,
                 callback=self.apply_category_preset

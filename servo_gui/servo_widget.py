@@ -3,7 +3,7 @@ import tkinter as tk
 import time
 
 class ServoWidget(tk.Frame):
-    def __init__(self, parent, arm_name, servo_name, dwell_time=1.0, callback=None):
+    def __init__(self, parent, arm_name, servo_name, left_label="-", right_label="+", dwell_time=1.0, callback=None):
         super().__init__(parent, borderwidth=2, relief="groove")
         self.arm_name = arm_name
         self.servo_name = servo_name
@@ -32,8 +32,10 @@ class ServoWidget(tk.Frame):
         self.rect_right = self.canvas.create_rectangle(0, 0, 0, 0, fill="white", outline="black", tags="right")
         
         # Add text labels
-        self.text_left = self.canvas.create_text(0, 0, text="-", font=("Arial", 20))
-        self.text_right = self.canvas.create_text(0, 0, text="+", font=("Arial", 20))
+        # Use smaller font if labels are long
+        font_size = 20 if len(left_label) < 3 and len(right_label) < 3 else 14
+        self.text_left = self.canvas.create_text(0, 0, text=left_label, font=("Arial", font_size))
+        self.text_right = self.canvas.create_text(0, 0, text=right_label, font=("Arial", font_size))
         
         # Progress bar
         self.progress_bar = self.canvas.create_rectangle(0, 0, 0, 0, fill="#4CAF50", outline="")

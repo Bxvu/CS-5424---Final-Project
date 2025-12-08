@@ -14,11 +14,31 @@ except ImportError:
 import time
 
 # Try to import pi_servo_hat, mock if not available (for testing without hardware)
+USE_MOCK_HARDWARE = True  # Set to True to force mock mode (prevent overheating/power surges)
+
+class MockServoHat:
+    def __init__(self):
+        print("MOCK: Initializing MockServoHat")
+    
+    def restart(self):
+        print("MOCK: Restarting Servo Hat")
+        
+    def sleep(self):
+        print("MOCK: Sleeping Servo Hat")
+        
+    def move_servo_position(self, channel, angle):
+        print(f"MOCK: Moving servo on channel {channel} to {angle} degrees")
+
 try:
+    if USE_MOCK_HARDWARE:
+        raise ImportError("Forced Mock Mode")
     import pi_servo_hat
     HAS_HARDWARE = True
 except ImportError:
-    print("WARNING: pi_servo_hat not found. Running in simulation mode.")
+    if USE_MOCK_HARDWARE:
+        print("NOTE: Running in Forced Mock Mode (Hardware Disabled)")
+    else:
+        print("WARNING: pi_servo_hat not found. Running in simulation mode.")
     HAS_HARDWARE = False
 
 # Try to import LED Stick
@@ -180,8 +200,19 @@ class ServoGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Robot Arm Servo Control")
-        # self.root.geometry("600x600")
-        self.root.attributes('-fullscreen', True)
+        
+        # 80% Screen Size
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        window_width = int(screen_width * 0.8)
+        window_height = int(screen_height * 0.8)
+        
+        # Center the window
+        x_pos = int((screen_width - window_width) / 2)
+        y_pos = int((screen_height - window_height) / 2)
+        
+        self.root.geometry(f"{window_width}x{window_height}+{x_pos}+{y_pos}")
+        # self.root.attributes('-fullscreen', True) # Disabled fullscreen
         self.root.bind("<Escape>", self.quit_app) # Exit on Escape
         self.running = True
         self._quitting = False
@@ -209,6 +240,10 @@ class ServoGUI:
             except Exception as e:
                 print(f"Error initializing Servo Hat: {e}")
                 self.servo = None
+        else:
+            # Use Mock Servo Hat if hardware is missing or disabled
+            print("Using Mock Servo Hat")
+            self.servo = MockServoHat()
 
         # Initialize Headset Client
         self.headset = HeadsetClient()
@@ -319,10 +354,17 @@ class ServoGUI:
         self.right_frame = tk.Frame(self.columns_frame, borderwidth=0, relief="sunken")
         self.right_frame.pack(side="right", fill="both", expand=True, padx=5)
         
-        # Headers
-        tk.Label(self.left_frame, text="Left Arm", font=("Arial", 14, "bold")).pack(pady=5)
-        tk.Label(self.right_frame, text="Right Arm", font=("Arial", 14, "bold")).pack(pady=5)
-
+        # Header
+        
+        # Servo Labels Configuration (Left Label (-), Right Label (+))
+        self.servo_labels = {
+            "Base": ("Right", "Left"), # Rotates base
+            "Shoulder": ("Down", "Up"), # Lifts shoulder
+            "Elbow": ("Down", "Up"),    # Lifts elbow
+            "Wrist": ("Right", "Left"), # Wrist rotates
+            "Gripper": ("Open", "Close") # Open/Close gripper
+        }
+        
         # Servo Widgets Storage
         self.widgets = []
         
@@ -343,7 +385,8 @@ class ServoGUI:
         
     def create_arm_widgets(self, parent, arm_name, servo_names):
         for name in servo_names:
-            widget = ServoWidget(parent, arm_name, name, callback=self.on_servo_action)
+            left_lbl, right_lbl = self.servo_labels.get(name, ("-", "+"))
+            widget = ServoWidget(parent, arm_name, name, left_label=left_lbl, right_label=right_lbl, callback=self.on_servo_action)
             widget.pack(pady=5, fill="both", expand=True)
             
             # Set limits and initial angle
@@ -465,13 +508,28 @@ class ServoGUI:
                             widget.clear_hover()
                 else:
                     # Hit testing for Main Menu Preset Widgets
+                    # Get Canvas bounds for visibility check
+                    c_y_min = self.preset_canvas.winfo_rooty()
+                    c_y_max = c_y_min + self.preset_canvas.winfo_height()
+                    
                     for pw in self.preset_widgets:
                         pwx = pw.winfo_rootx()
                         pwy = pw.winfo_rooty()
                         pww = pw.winfo_width()
                         pwh = pw.winfo_height()
                         
-                        if pwx <= gaze_x <= pwx + pww and pwy <= gaze_y <= pwy + pwh:
+                        # Special check for Scroll Buttons (they are outside the canvas, so always visible)
+                        is_scroll_btn = (pw == self.scroll_up_btn or pw == self.scroll_down_btn)
+                        
+                        # Visibility check for items inside canvas
+                        is_visible = True
+                        if not is_scroll_btn:
+                            # A simple check: is the center of the widget within the canvas Y bounds?
+                            center_y = pwy + (pwh / 2)
+                            if center_y < c_y_min or center_y > c_y_max:
+                                is_visible = False
+                        
+                        if is_visible and pwx <= gaze_x <= pwx + pww and pwy <= gaze_y <= pwy + pwh:
                             pw.update_gaze()
                         else:
                             pw.clear_hover()
@@ -635,8 +693,51 @@ class ServoGUI:
         }
 
         # Create gaze-selectable preset widgets
-        self.preset_btn_frame = tk.Frame(self.presets_frame)
-        self.preset_btn_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        # Container for Scroll Controls and List
+        self.scroll_container = tk.Frame(self.presets_frame)
+        self.scroll_container.pack(fill="both", expand=True, padx=20, pady=5)
+
+        # SCROLL UP BUTTON
+        self.scroll_up_btn = PresetWidget(
+            self.scroll_container,
+            "Scroll Up",
+            dwell_time=0.8,
+            callback=lambda _: self.scroll_list(-1)
+        )
+        self.scroll_up_btn.pack(fill="x", pady=2)
+        # Manually set height to be smaller
+        self.scroll_up_btn.canvas.config(height=50)
+        self.scroll_up_btn.rect = self.scroll_up_btn.canvas.find_closest(0, 0)[0] # Hacky re-find or just reuse
+        # Actually PresetWidget logic uses self.height, let's just let it be standard or slightly smaller? 
+        # The user wanted taller buttons for presets, but scroll buttons might be fine standard.
+
+        # CANVAS AREA
+        self.preset_canvas = tk.Canvas(self.scroll_container, bg="gray", highlightthickness=0)
+        self.preset_canvas.pack(side="top", fill="both", expand=True, pady=5)
+        
+        self.scrollbar = tk.Scrollbar(self.scroll_container, orient="vertical", command=self.preset_canvas.yview)
+        # self.scrollbar.pack(side="right", fill="y") # Optional: Hide scrollbar if purely gaze driven
+        
+        self.preset_canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        self.preset_canvas.bind('<Configure>', lambda e: self.preset_canvas.configure(scrollregion=self.preset_canvas.bbox("all")))
+
+        # FRAME INSIDE CANVAS
+        self.preset_btn_frame = tk.Frame(self.preset_canvas)
+        self.canvas_window_id = self.preset_canvas.create_window((0, 0), window=self.preset_btn_frame, anchor="nw")
+        
+        self.preset_btn_frame.bind("<Configure>", self.on_frame_configure)
+        self.preset_canvas.bind("<Configure>", self.on_canvas_configure)
+
+        # SCROLL DOWN BUTTON
+        self.scroll_down_btn = PresetWidget(
+            self.scroll_container,
+            "Scroll Down",
+            dwell_time=0.8,
+            callback=lambda _: self.scroll_list(1)
+        )
+        self.scroll_down_btn.pack(side="bottom", fill="x", pady=2)
+        self.scroll_down_btn.canvas.config(height=50)
 
         # Store widgets for hit testing
         self.category_widgets = [] # For category buttons
@@ -652,12 +753,11 @@ class ServoGUI:
                 dwell_time=1.5,
                 callback=self.show_category_view
             )
-            # Style it slightly differently maybe? For now just use text.
             pw.grid(row=row, column=col, padx=10, pady=5, sticky="nsew")
             self.preset_widgets.append(pw) # Add to main hit testing list
             
             col += 1
-            if col > 1:
+            if col > 2: # 3 Columns (0, 1, 2)
                 col = 0
                 row += 1
 
@@ -672,18 +772,37 @@ class ServoGUI:
             pw.grid(row=row, column=col, padx=10, pady=5, sticky="nsew")
             self.preset_widgets.append(pw)
             col += 1
-            if col > 1:  # 2 columns
+            if col > 2:  # 3 columns
                 col = 0
                 row += 1
         
         # Configure grid weights for even spacing
-        for i in range(2):
+        for i in range(3):
             self.preset_btn_frame.columnconfigure(i, weight=1)
+
+        # Add scroll buttons to hit testing list?
+        # We handle them separately or add to preset_widgets.
+        # Adding to preset_widgets means they get checked in the main loop.
+        self.preset_widgets.append(self.scroll_up_btn)
+        self.preset_widgets.append(self.scroll_down_btn)
 
         # Pre-create a frame for Category View (Submenu) - Hidden initially
         self.category_frame = tk.Frame(self.main_frame)
         self.category_widgets_list = [] # Store widgets in current category view for hit testing
         self.current_category_presets = {} # Local presets for the active category
+        
+    def on_frame_configure(self, event):
+        """Reset the scroll region to encompass the inner frame"""
+        self.preset_canvas.configure(scrollregion=self.preset_canvas.bbox("all"))
+
+    def on_canvas_configure(self, event):
+        """Resize the inner frame to match the canvas width"""
+        canvas_width = event.width
+        self.preset_canvas.itemconfig(self.canvas_window_id, width=canvas_width)
+
+    def scroll_list(self, direction):
+        """Scroll manually (1 for down, -1 for up)"""
+        self.preset_canvas.yview_scroll(direction, "units")
         
     def show_category_view(self, category_name):
         """Switch to categorical submenu."""
@@ -755,7 +874,8 @@ class ServoGUI:
             # We need to find the current angle first
             current_angle = self.servo_angles[arm_name][servo_name]
             
-            sw = ServoWidget(right_pane, arm_name, servo_name, callback=self.on_servo_action)
+            left_lbl, right_lbl = self.servo_labels.get(servo_name, ("-", "+"))
+            sw = ServoWidget(right_pane, arm_name, servo_name, left_label=left_lbl, right_label=right_lbl, callback=self.on_servo_action)
             sw.pack(pady=5, fill="both", expand=True)
             
             # Set limits

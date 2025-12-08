@@ -15,17 +15,18 @@ class PresetWidget(tk.Frame):
         self.triggered = False  # Prevent multiple triggers
         
         # UI Setup
-        self.canvas = tk.Canvas(self, bg="white", width=200, height=60)
+        self.height = 100 # Increased height
+        self.canvas = tk.Canvas(self, bg="white", width=200, height=self.height)
         self.canvas.pack(fill="both", expand=True, padx=2, pady=2)
         
         # Draw rectangle background
-        self.rect = self.canvas.create_rectangle(0, 0, 200, 60, fill="white", outline="black")
+        self.rect = self.canvas.create_rectangle(0, 0, 200, self.height, fill="white", outline="black")
         
         # Add text label
-        self.text = self.canvas.create_text(100, 30, text=preset_name, font=("Arial", 12, "bold"))
+        self.text = self.canvas.create_text(100, self.height/2, text=preset_name, font=("Arial", 12, "bold"))
         
         # Progress bar (hidden initially)
-        self.progress_bar = self.canvas.create_rectangle(0, 55, 0, 60, fill="#4CAF50", outline="")
+        self.progress_bar = self.canvas.create_rectangle(0, self.height-5, 0, self.height, fill="#4CAF50", outline="")
         
         # Bind events
         self.canvas.bind("<Configure>", self.on_resize)
@@ -35,7 +36,7 @@ class PresetWidget(tk.Frame):
     def on_resize(self, event):
         w, h = event.width, event.height
         self.canvas.coords(self.rect, 0, 0, w, h)
-        self.canvas.coords(self.text, w/2, h/2 - 5)
+        self.canvas.coords(self.text, w/2, h/2)
         self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
         
     def on_enter(self, event):

@@ -4,16 +4,15 @@ import time
 
 class PresetWidget(tk.Frame):
     """A gaze-selectable preset button widget."""
-    def __init__(self, parent, preset_name, dwell_time=1.5, repeating=False, repeat_rate=0.5, callback=None):
+    def __init__(self, parent, preset_name, dwell_time=1.5, callback=None, repeat=False):
         super().__init__(parent, borderwidth=2, relief="groove")
         self.preset_name = preset_name
         self.dwell_time = dwell_time
-        self.repeating = repeating
-        self.repeat_rate = repeat_rate
         self.callback = callback
+        self.repeat = repeat # internal flag for scrolling
         
         self.is_hovering = False
-        self.progress_seconds = 0.0
+        self.progress_seconds = 0.0 # Accumulated active time
         self.last_update_time = time.time()
         self.triggered = False  # Prevent multiple triggers
         
@@ -44,39 +43,41 @@ class PresetWidget(tk.Frame):
         
     def on_enter(self, event):
         self.is_hovering = True
+        self.last_update_time = time.time()
         self.update_visuals()
         
     def on_leave(self, event):
         self.is_hovering = False
-        self.reset_visuals(partial=True)
+        self.triggered = False
+        self.last_update_time = time.time()
+        # Do NOT reset progress_seconds here, let it decay
+        self.reset_visuals()
 
     def update_gaze(self):
         """Manual update from eye tracker - called when gaze is on this widget."""
         if not self.is_hovering:
             self.is_hovering = True
+            self.last_update_time = time.time()
+            self.triggered = False
         self.update_visuals()
 
     def clear_hover(self):
         """Manual clear hover state."""
         if self.is_hovering:
             self.is_hovering = False
-            self.reset_visuals(partial=True)
+            # self.triggered = False # Don't untrigger immediately if we want to latch? Standard behavior is fine.
+            self.triggered = False 
+            self.last_update_time = time.time()
+            self.reset_visuals()
             
     def update_visuals(self):
         self.canvas.itemconfig(self.rect, fill="#e3f2fd")  # Light blue highlight
         
-    def reset_visuals(self, partial=False):
-        """
-        Reset visuals.
-        partial=True means we just lost hover (don't clear progress bar instantly).
-        partial=False means full reset (clear everything).
-        """
+    def reset_visuals(self):
         self.canvas.itemconfig(self.rect, fill="white")
-        if not partial:
-            # Reset progress bar only on full reset (e.g. after trigger)
-            w = self.canvas.winfo_width()
-            h = self.canvas.winfo_height()
-            self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
+        # Don't reset progress bar width here visually if we want to show decay, 
+        # but usually we hide it or show it shrinking. 
+        # For now, let process_frame handle the bar coords.
         
     def process_frame(self, attention_level):
         """Called every frame to check dwell time and trigger action."""
@@ -84,54 +85,55 @@ class PresetWidget(tk.Frame):
         dt = current_time - self.last_update_time
         self.last_update_time = current_time
         
-        if self.triggered and not self.repeating:
-            # Wait for user to look away before resetting trigger state completely
-            if not self.is_hovering:
-                self.triggered = False
-                self.progress_seconds = 0
-            return
-
-        if self.is_hovering:
-            # Accumulate time
+        # Decay rate (seconds lost per second)
+        DECAY_RATE = 2.0
+        
+        if self.is_hovering and (not self.triggered or self.repeat):
             self.progress_seconds += dt
         else:
-            # Decay time (e.g. 2x speed decay)
-            decay_rate = 2.0
-            self.progress_seconds -= dt * decay_rate
+            # Decay if not hovering OR if already triggered (resetting)
+            if self.progress_seconds > 0:
+                self.progress_seconds -= dt * DECAY_RATE
         
-        # Clamp bounds
+        # Clamp
         self.progress_seconds = max(0.0, min(self.progress_seconds, self.dwell_time))
         
         # Update progress bar
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
-        if w > 1: # Avoid div by zero or weirdness if not packed yet
+        
+        if self.progress_seconds > 0:
             progress_width = (self.progress_seconds / self.dwell_time) * w
             self.canvas.coords(self.progress_bar, 0, h - 5, progress_width, h)
-        
+        else:
+            self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
+            
         # Check trigger
-        if self.progress_seconds >= self.dwell_time:
-            # Threshold check
-            THRESHOLD = 1 
-            if attention_level > THRESHOLD:
-                self.canvas.itemconfig(self.rect, fill="#4CAF50")
-                if self.callback:
-                    self.callback(self.preset_name)
-                
-                if self.repeating:
-                    # Continuous Mode: Reset progress slightly to re-trigger after repeat_rate
-                    # We subtract repeat_rate from dwell_time to find the new progress base
-                    self.progress_seconds = max(0, self.dwell_time - self.repeat_rate)
-                    # Don't set self.triggered = True, allow immediate re-accumulation
-                    
-                    # Visual feedback blink?
-                    self.after(100, self.update_visuals) # Briefly go back to blue
-                else:
-                    # Single Shot Mode
-                    self.triggered = True
-                    # Reset progress after trigger
-                    self.progress_seconds = 0
-                    self.after(300, lambda: self.reset_visuals(partial=False))
+        if self.is_hovering:
+            if not self.triggered or self.repeat:
+                if self.progress_seconds >= self.dwell_time:
+                    # Threshold check
+                    THRESHOLD = 35
+                    if attention_level > THRESHOLD:
+                        self.triggered = True
+                        self.perform_trigger()
+
+    def perform_trigger(self):
+        self.canvas.itemconfig(self.rect, fill="#4CAF50")
+        if self.callback:
+            self.callback(self.preset_name)
+        
+        if self.repeat:
+            # Faster repeat: Reset progress to allow quick re-trigger
+            # e.g., if dwell is 0.8, set to 0.6 so it fires again in 0.2s
+            repeat_delay = 0.2
+            self.progress_seconds = max(0, self.dwell_time - repeat_delay)
+            self.triggered = False # Allow re-trigger
+            self.after(50, self.reset_visuals) # Short flash
+        else:
+            # Reset progress after trigger so it can decay/reset
+            self.progress_seconds = 0
+            self.after(300, self.reset_visuals)
 
 
 class ToggleWidget(tk.Frame):
@@ -182,65 +184,73 @@ class ToggleWidget(tk.Frame):
         
     def on_enter(self, event):
         self.is_hovering = True
+        self.last_update_time = time.time()
         self.update_visuals()
         
     def on_leave(self, event):
         self.is_hovering = False
-        self.reset_visuals(partial=True)
+        self.triggered = False
+        self.last_update_time = time.time()
+        self.reset_visuals()
 
     def update_gaze(self):
         """Manual update from eye tracker."""
         if not self.is_hovering:
             self.is_hovering = True
+            self.last_update_time = time.time()
+            self.triggered = False
         self.update_visuals()
 
     def clear_hover(self):
         """Manual clear hover state."""
         if self.is_hovering:
             self.is_hovering = False
-            self.reset_visuals(partial=True)
+            self.triggered = False
+            self.last_update_time = time.time()
+            self.reset_visuals()
             
     def update_visuals(self):
         self.canvas.itemconfig(self.rect, fill="#bbdefb")  # Light blue
         
-    def reset_visuals(self, partial=False):
+    def reset_visuals(self):
         self.canvas.itemconfig(self.rect, fill="#e0e0e0")
-        if not partial:
-            w = self.canvas.winfo_width()
-            h = self.canvas.winfo_height()
-            self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
         
     def process_frame(self, attention_level=0):
+        """Called every frame to check dwell time and trigger toggle."""
         current_time = time.time()
         dt = current_time - self.last_update_time
         self.last_update_time = current_time
         
-        if self.triggered:
-            if not self.is_hovering:
-                self.triggered = False
-                self.progress_seconds = 0
-            return
-
-        if self.is_hovering:
+        DECAY_RATE = 2.0
+        
+        if self.is_hovering and not self.triggered:
             self.progress_seconds += dt
         else:
-            decay_rate = 2.0
-            self.progress_seconds -= dt * decay_rate
-            
+            if self.progress_seconds > 0:
+                self.progress_seconds -= dt * DECAY_RATE
+                
         self.progress_seconds = max(0.0, min(self.progress_seconds, self.dwell_time))
         
+        # Update progress bar
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
-        if w > 1:
+        
+        if self.progress_seconds > 0:
             progress_width = (self.progress_seconds / self.dwell_time) * w
             self.canvas.coords(self.progress_bar, 0, h - 5, progress_width, h)
+        else:
+            self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
             
-        if self.progress_seconds >= self.dwell_time:
-            THRESHOLD = 1
-            if attention_level > THRESHOLD:
-                self.triggered = True
-                self.canvas.itemconfig(self.rect, fill="#4CAF50")
-                if self.callback:
-                    self.callback()
-                self.progress_seconds = 0
-                self.after(300, lambda: self.reset_visuals(partial=False))
+        if self.is_hovering and not self.triggered:
+            if self.progress_seconds >= self.dwell_time:
+                THRESHOLD = 35
+                if attention_level > THRESHOLD:
+                    self.triggered = True
+                    self.perform_trigger()
+
+    def perform_trigger(self):
+        self.canvas.itemconfig(self.rect, fill="#4CAF50")
+        if self.callback:
+            self.callback()
+        self.progress_seconds = 0
+        self.after(300, self.reset_visuals)

@@ -11,10 +11,9 @@ class ServoWidget(tk.Frame):
         self.callback = callback
         
         self.is_hovering = False
-        self.hover_side = None # 'left' or 'right'
-        
         self.progress_seconds = 0.0
         self.last_update_time = time.time()
+        self.hover_side = None # 'left' or 'right'
         
         self.min_limit = 0
         self.max_limit = 180
@@ -68,26 +67,29 @@ class ServoWidget(tk.Frame):
         
     def on_enter(self, event):
         self.is_hovering = True
+        self.last_update_time = time.time()
         self.check_side(event.x)
-        self.update_visuals()
         
     def on_leave(self, event):
         self.is_hovering = False
         self.hover_side = None
-        self.reset_visuals(partial=True)
+        self.last_update_time = time.time()
+        self.reset_visuals()
         
     def on_motion(self, event):
         w = self.canvas.winfo_width()
         new_side = 'left' if event.x < w/2 else 'right'
         if new_side != self.hover_side:
             self.hover_side = new_side
-            self.progress_seconds = 0
+            self.last_update_time = time.time()
+            self.progress_seconds = 0.0 # Reset progress if switching sides instantly
             self.update_visuals()
 
     def update_gaze(self, rel_x):
         """Manual update from eye tracker coordinates (relative to widget)"""
         if not self.is_hovering:
             self.is_hovering = True
+            self.last_update_time = time.time()
         
         self.check_side(rel_x)
 
@@ -96,7 +98,8 @@ class ServoWidget(tk.Frame):
         if self.is_hovering:
             self.is_hovering = False
             self.hover_side = None
-            self.reset_visuals(partial=True)
+            self.last_update_time = time.time()
+            self.reset_visuals()
             
     def check_side(self, x):
         w = self.canvas.winfo_width()
@@ -104,7 +107,8 @@ class ServoWidget(tk.Frame):
         
         if new_side != self.hover_side:
             self.hover_side = new_side
-            self.progress_seconds = 0 # Reset if switching sides
+            self.last_update_time = time.time() 
+            self.progress_seconds = 0.0 # Reset progress if switching sides
             self.update_visuals()
         
     def update_visuals(self):
@@ -123,44 +127,54 @@ class ServoWidget(tk.Frame):
             else:
                 self.canvas.itemconfig(self.rect_right, fill="#ccffcc") # Light green
         else:
-            self.reset_visuals(partial=True)
+            self.reset_visuals()
             
-    def reset_visuals(self, partial=False):
+    def reset_visuals(self):
         self.canvas.itemconfig(self.rect_left, fill="white")
         self.canvas.itemconfig(self.rect_right, fill="white")
         # Reset progress bar
-        if not partial:
-            w = self.canvas.winfo_width()
-            h = self.canvas.winfo_height()
-            self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
         
     def process_frame(self, attention_level):
         current_time = time.time()
         dt = current_time - self.last_update_time
         self.last_update_time = current_time
         
+        # Decay logic
+        DECAY_RATE = 2.0
+        
         if self.is_hovering and self.hover_side:
             self.progress_seconds += dt
         else:
-            decay_rate = 2.0
-            self.progress_seconds -= dt * decay_rate
-            
-        self.progress_seconds = max(0.0, min(self.progress_seconds, self.dwell_time))
+            if self.progress_seconds > 0:
+                self.progress_seconds -= dt * DECAY_RATE
         
+        # Clamp
+        self.progress_seconds = max(0.0, min(self.progress_seconds, self.dwell_time))
+
         # Update progress bar
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
-        progress_width = (self.progress_seconds / self.dwell_time) * w
-        self.canvas.coords(self.progress_bar, 0, h - 5, progress_width, h)
+        
+        if self.progress_seconds > 0:
+            progress_width = (self.progress_seconds / self.dwell_time) * w
+            self.canvas.coords(self.progress_bar, 0, h - 5, progress_width, h)
+        else:
+            self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
 
         # Buffer check
         if self.progress_seconds < self.dwell_time:
             return
 
-        THRESHOLD = 1
+        # Threshold check
+        THRESHOLD = 35
         
         if attention_level > THRESHOLD:
+            # step = 1
             step = 1
 
             if self.callback:
                 self.callback(self.arm_name, self.servo_name, self.hover_side, step)
+ 

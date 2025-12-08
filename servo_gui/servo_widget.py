@@ -11,9 +11,10 @@ class ServoWidget(tk.Frame):
         self.callback = callback
         
         self.is_hovering = False
-        self.hover_start_time = 0
         self.hover_side = None # 'left' or 'right'
-        self.last_trigger_time = 0
+        
+        self.progress_seconds = 0.0
+        self.last_update_time = time.time()
         
         self.min_limit = 0
         self.max_limit = 180
@@ -68,26 +69,25 @@ class ServoWidget(tk.Frame):
     def on_enter(self, event):
         self.is_hovering = True
         self.check_side(event.x)
-        self.hover_start_time = time.time()
+        self.update_visuals()
         
     def on_leave(self, event):
         self.is_hovering = False
         self.hover_side = None
-        self.reset_visuals()
+        self.reset_visuals(partial=True)
         
     def on_motion(self, event):
         w = self.canvas.winfo_width()
         new_side = 'left' if event.x < w/2 else 'right'
         if new_side != self.hover_side:
             self.hover_side = new_side
-            self.hover_start_time = time.time() # Reset timer on side switch
+            self.progress_seconds = 0
             self.update_visuals()
 
     def update_gaze(self, rel_x):
         """Manual update from eye tracker coordinates (relative to widget)"""
         if not self.is_hovering:
             self.is_hovering = True
-            self.hover_start_time = time.time()
         
         self.check_side(rel_x)
 
@@ -96,7 +96,7 @@ class ServoWidget(tk.Frame):
         if self.is_hovering:
             self.is_hovering = False
             self.hover_side = None
-            self.reset_visuals()
+            self.reset_visuals(partial=True)
             
     def check_side(self, x):
         w = self.canvas.winfo_width()
@@ -104,7 +104,7 @@ class ServoWidget(tk.Frame):
         
         if new_side != self.hover_side:
             self.hover_side = new_side
-            self.hover_start_time = time.time() # Reset timer on side switch
+            self.progress_seconds = 0 # Reset if switching sides
             self.update_visuals()
         
     def update_visuals(self):
@@ -123,42 +123,44 @@ class ServoWidget(tk.Frame):
             else:
                 self.canvas.itemconfig(self.rect_right, fill="#ccffcc") # Light green
         else:
-            self.reset_visuals()
+            self.reset_visuals(partial=True)
             
-    def reset_visuals(self):
+    def reset_visuals(self, partial=False):
         self.canvas.itemconfig(self.rect_left, fill="white")
         self.canvas.itemconfig(self.rect_right, fill="white")
         # Reset progress bar
-        w = self.canvas.winfo_width()
-        h = self.canvas.winfo_height()
-        self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
-        
-    def process_frame(self, attention_level):
-        if self.is_hovering and self.hover_side:
-            elapsed = time.time() - self.hover_start_time
-            
-            # Update progress bar
+        if not partial:
             w = self.canvas.winfo_width()
             h = self.canvas.winfo_height()
-            progress_width = min(w, (elapsed / self.dwell_time) * w)
-            self.canvas.coords(self.progress_bar, 0, h - 5, progress_width, h)
-
-            # Buffer check: wait for dwell_time before acting
-            if elapsed < self.dwell_time:
-                return
-
-            # Threshold check - only move if attention is sufficient
-            # You can adjust this threshold (e.g., 40, 50)
-            THRESHOLD = 35
+            self.canvas.coords(self.progress_bar, 0, h - 5, 0, h)
+        
+    def process_frame(self, attention_level):
+        current_time = time.time()
+        dt = current_time - self.last_update_time
+        self.last_update_time = current_time
+        
+        if self.is_hovering and self.hover_side:
+            self.progress_seconds += dt
+        else:
+            decay_rate = 2.0
+            self.progress_seconds -= dt * decay_rate
             
-            if attention_level > THRESHOLD:
-                # Calculate step size based on attention
-                # Higher attention -> larger steps (faster movement)
-                # Map 40-100 to 1-5 degrees
-                # step = 1 + int((attention_level - THRESHOLD) / 15)
-                
-                # nah have constant slow step
-                step = 1
+        self.progress_seconds = max(0.0, min(self.progress_seconds, self.dwell_time))
+        
+        # Update progress bar
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        progress_width = (self.progress_seconds / self.dwell_time) * w
+        self.canvas.coords(self.progress_bar, 0, h - 5, progress_width, h)
 
-                if self.callback:
-                    self.callback(self.arm_name, self.servo_name, self.hover_side, step) 
+        # Buffer check
+        if self.progress_seconds < self.dwell_time:
+            return
+
+        THRESHOLD = 1
+        
+        if attention_level > THRESHOLD:
+            step = 1
+
+            if self.callback:
+                self.callback(self.arm_name, self.servo_name, self.hover_side, step)

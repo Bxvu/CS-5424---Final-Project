@@ -30,12 +30,12 @@ This project creates an accessible human-robot interaction system where users ca
 │      Webcam         │─────▶│   Main App      │─────▶│  Servo Hat      │
 │  (Eye + Head Track) │      │  (servo_app.py) │      │  (PCA9685)      │
 └─────────────────────┘      └─────────────────┘      └────────┬────────┘
-                                                               │
-                                                               ▼
-                                                      ┌─────────────────┐
-                                                      │   Robot Arms    │
-                                                      │  (10 Servos)    │
-                                                      └─────────────────┘
+                                    │                          │
+                                    ▼                          ▼
+                             ┌─────────────────┐      ┌─────────────────┐
+                             │  LED Stick      │      │   Robot Arms    │
+                             │  (Attention)    │      │  (10 Servos)    │
+                             └─────────────────┘      └─────────────────┘
 ```
 
 ---
@@ -57,7 +57,6 @@ CS-5424---Final-Project/
 ├── pi_headset.py             # Standalone headset data viewer
 ├── eye_tracking.py           # Standalone eye tracking demo
 ├── sudodata.py               # Mock headset data generator
-├── guesture_servo.py         # Finger-count servo selection
 │
 ├── setup_guide.md            # Hardware setup instructions
 ├── requirements.txt          # Python dependencies
@@ -101,30 +100,49 @@ This hybrid approach is more robust than pure eye tracking while remaining respo
 
 **File:** `servo_gui/servo_app.py`
 
-A fullscreen Tkinter application with two control modes:
+A windowed Tkinter application (80% screen size) with multiple control modes:
 
-**Preset Mode (Default):**
-- Pre-defined arm poses (Home, Wave, Throw, Kick, etc.)
-- Look at a preset button → dwell for 1.5s → focus to activate
+#### Preset Mode (Default)
+- Pre-defined arm poses organized into categories
+- Scrollable list with gaze-controlled scroll buttons
+- Categories include: **Throw**, **Kick**, **Pass Object (L to R)**
+- Each category has its own submenu with step-by-step actions
 
-**Manual Mode:**
+#### Manual Mode
 - Fine-grained control of each servo
-- Each joint has +/- buttons for increment/decrement
-- Supports both arms (10 servos total)
+- Descriptive labels (e.g., "Forwards/Backwards" instead of "+/-")
+- Visual feedback when at joint limits
 
-**Servo Mapping:**
-| Arm | Joint | Channel |
-|-----|-------|---------|
-| Left | Base | 0 |
-| Left | Shoulder | 1 |
-| Left | Elbow | 2 |
-| Left | Wrist | 3 |
-| Left | Gripper | 4 |
-| Right | Base | 15 |
-| Right | Shoulder | 14 |
-| Right | Elbow | 13 |
-| Right | Wrist | 12 |
-| Right | Gripper | 11 |
+#### Features
+- **Mock Hardware Mode**: `USE_MOCK_HARDWARE = True` for testing without servos
+- **LED Attention Meter**: 10-LED strip showing attention level (Red → Yellow → Green)
+- **Startup Pose**: Configurable initial arm position
+- **Smooth Interpolation**: Servo movements interpolated over time for fluid motion
+- **Safe Exit**: Returns to startup pose before shutting down
+
+#### Servo Mapping
+
+| Arm | Joint | Channel | Labels |
+|-----|-------|---------|--------|
+| Left | Base | 0 | Right / Left |
+| Left | Shoulder | 1 | Backwards / Forwards |
+| Left | Elbow | 2 | Forwards / Backwards |
+| Left | Wrist | 3 | Right / Left |
+| Left | Gripper | 4 | Open / Close |
+| Right | Base | 15 | Right / Left |
+| Right | Shoulder | 14 | Backwards / Forwards |
+| Right | Elbow | 13 | Forwards / Backwards |
+| Right | Wrist | 12 | Right / Left |
+| Right | Gripper | 11 | Open / Close |
+
+#### Servo Limits
+
+Two arm configurations are supported with different servo limits:
+
+| Type | Used For | Shoulder Range | Gripper Range |
+|------|----------|----------------|---------------|
+| Orange | Left Arm | 10° - 100° | -20° - 73° |
+| Black | Right Arm | 20° - 150° | -50° - 50° |
 
 ### 4. Rock-Paper-Scissors Demo
 
@@ -132,11 +150,12 @@ A fullscreen Tkinter application with two control modes:
 
 A demonstration game showing the system's capabilities:
 
-1. User looks at Rock, Paper, or Scissors
+1. User looks at Rock (R), Paper (P), or Scissors (S)
 2. Dwell + focus triggers selection
 3. Left arm displays user's choice
 4. Right arm displays random computer choice
 5. Winner determined and displayed
+6. Auto-exits after 10 seconds if user wins
 
 **Servo Gestures:**
 | Gesture | Gripper Angle | Description |
@@ -144,6 +163,20 @@ A demonstration game showing the system's capabilities:
 | Rock | 180° | Closed fist |
 | Paper | 0° | Open hand |
 | Scissors | 90° | Half open |
+
+### 5. LED Attention Meter
+
+**Integrated in:** `servo_gui/servo_app.py`
+
+Uses a Qwiic LED Stick (10 LEDs) to display attention level in real-time:
+
+| LEDs Lit | Attention Level | Color |
+|----------|-----------------|-------|
+| 1-3 | Low (0-30) | Red |
+| 4-6 | Medium (30-60) | Yellow |
+| 7-10 | High (60-100) | Green |
+
+Runs a test pattern on startup to verify functionality.
 
 ---
 
@@ -154,6 +187,7 @@ A demonstration game showing the system's capabilities:
 - **NeuroSky MindWave Mobile** EEG headset
 - **USB Webcam** (for eye tracking)
 - **2x Robot Arms** with 5 servos each
+- **Qwiic LED Stick** (optional, for attention visualization)
 
 ---
 
@@ -167,6 +201,7 @@ Key dependencies:
 - `mediapipe` - Face mesh and iris detection
 - `opencv-python` - Video capture and processing
 - `sparkfun-pi-servo-hat` - Servo control
+- `qwiic-led-stick` - LED attention meter
 - `screeninfo` - Screen dimension detection
 
 ---
@@ -208,24 +243,55 @@ python3 sudodata.py --att_mean 60 --att_var 15 --interval 0.5
 |--------|--------|
 | Select control | Look at it (gaze + head position) |
 | Confirm action | Focus/concentrate (attention > 35) |
-| Exit fullscreen | Press `ESC` |
-| Quit application | Press `ESC` or close window |
+| Toggle mode | Look at "Switch to Manual/Presets" button |
+| Scroll lists | Look at Scroll Up/Down buttons |
+| Exit application | Press `ESC` |
 
 ---
 
 ## Interaction Flow
 
 ```
-1. LOOK → Gaze determines which widget is targeted
-           (progress bar starts filling)
+1. LOOK    → Gaze determines which widget is targeted
+             (progress bar starts filling)
 
-2. DWELL → Keep looking for 1.5 seconds
-           (progress bar fills up)
+2. DWELL   → Keep looking for 1.5 seconds
+             (progress bar fills up)
+             Progress decays if you look away
 
-3. FOCUS → Concentrate to trigger action
-           (attention level must exceed threshold)
+3. FOCUS   → Concentrate to trigger action
+             (attention level must exceed threshold)
 
-4. ACTION → Servo moves / preset activates / selection confirmed
+4. ACTION  → Servo moves smoothly to target position
+             (interpolated over configurable duration)
+```
+
+---
+
+## Configuration Options
+
+### Mock Hardware Mode
+In `servo_gui/servo_app.py`:
+```python
+USE_MOCK_HARDWARE = True  # Set to False for real hardware
+```
+
+### Startup Pose
+```python
+STARTUP_POSE = {
+    "LeftArm": {"Base": 60, "Shoulder": 30, "Elbow": 70, "Wrist": 55, "Gripper": 0},
+    "RightArm": {"Base": 10, "Shoulder": 50, "Elbow": 70, "Wrist": 90, "Gripper": 0}
+}
+```
+
+### Attention Threshold
+```python
+THRESHOLD = 35  # Minimum attention level to trigger actions
+```
+
+### Dwell Time
+```python
+dwell_time = 1.5  # Seconds of sustained gaze required
 ```
 
 ---
@@ -237,8 +303,34 @@ This system was designed with accessibility in mind:
 - **Hands-free operation** - No physical buttons or touch required
 - **Adjustable thresholds** - Attention threshold can be tuned per user
 - **Fallback controls** - Mouse hover works if eye tracking unavailable
-- **Visual feedback** - Progress bars and color changes show system state
+- **Visual feedback** - Progress bars, color changes, and LED meter show system state
+- **Progress decay** - Looking away doesn't reset progress immediately
 - **Graceful degradation** - Works in simulation mode without hardware
+- **Safe shutdown** - Returns arms to known position on exit
+
+---
+
+## Preset Actions
+
+### Main Menu Presets
+- Home Position
+- Left/Right Gripper Open/Closed
+- Left/Right Elbow Bent/Extended
+- Wave Animation (single and both arms)
+- Reach Forward (Both)
+- Pass Object (L to R)
+
+### Category: Throw
+1. **Prepare** - Position arm for loading
+2. **Load** - Close gripper on object
+3. **Launch** - Animated throwing motion with release
+
+### Category: Kick
+1. **Load** - Wind up position
+2. **Strike** - Animated kick motion
+
+### Category: Pass Object (L to R)
+Step-by-step sequence for passing an object between arms with manual fine-tuning controls.
 
 ---
 

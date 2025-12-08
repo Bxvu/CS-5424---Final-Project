@@ -312,22 +312,30 @@ class ServoGUI:
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
-        # Top Info Frame
+        # Top Info Frame - Grid Layout for Centering
         self.info_frame = tk.Frame(self.main_frame)
         self.info_frame.pack(side="top", fill="x", pady=5)
+        
+        # Configure columns: 0 (Left), 1 (Center), 2 (Right)
+        # uniform="sides" ensures col 0 and 2 are equal width, forcing col 1 to be perfectly centered
+        self.info_frame.columnconfigure(0, weight=1, uniform="sides")
+        self.info_frame.columnconfigure(1, weight=0) # Button size
+        self.info_frame.columnconfigure(2, weight=1, uniform="sides")
 
-        # Signal Quality Display
-        self.signal_quality_label = tk.Label(self.info_frame, text="Signal Quality: 0", font=("Arial", 12))
-        self.signal_quality_label.pack(side="left", expand=True)
+        # LEFT SIDE: Stats
+        self.stats_frame = tk.Frame(self.info_frame)
+        self.stats_frame.grid(row=0, column=0, sticky="w", padx=10)
 
-        # Attention Display (enhanced with LED indicator)
+        self.signal_quality_label = tk.Label(self.stats_frame, text="Signal Quality: 0", font=("Arial", 12))
+        self.signal_quality_label.pack(side="top", anchor="w", padx=5)
+
         attention_text = "Attention: 0"
         if self.led_meter.enabled:
-            attention_text += " [LED Meter Active]"
-        self.attention_label = tk.Label(self.info_frame, text=attention_text, font=("Arial", 12))
-        self.attention_label.pack(side="left", expand=True)
+            attention_text += " [LED]"
+        self.attention_label = tk.Label(self.stats_frame, text=attention_text, font=("Arial", 12))
+        self.attention_label.pack(side="top", anchor="w", padx=5)
 
-        # Toggle Button (gaze-selectable)
+        # CENTER: Toggle Button
         self.toggle_widget = ToggleWidget(
             self.info_frame,
             text_on="Switch to Manual",
@@ -335,7 +343,10 @@ class ServoGUI:
             dwell_time=1.5,
             callback=self.toggle_mode
         )
-        self.toggle_widget.pack(side="right", padx=10)
+        self.toggle_widget.grid(row=0, column=1) # Center column
+        
+        # RIGHT: Spacer (Implicit by column configuration)
+        tk.Frame(self.info_frame).grid(row=0, column=2, sticky="ew") # Dummy filler
         self.toggle_widget.set_state(True) # Start in "On" state (Presets mode)
         
         # Track current mode
@@ -354,7 +365,9 @@ class ServoGUI:
         self.right_frame = tk.Frame(self.columns_frame, borderwidth=0, relief="sunken")
         self.right_frame.pack(side="right", fill="both", expand=True, padx=5)
         
-        # Header
+        # Headers
+        tk.Label(self.left_frame, text="Left Arm", font=("Arial", 14, "bold")).pack(pady=5)
+        tk.Label(self.right_frame, text="Right Arm", font=("Arial", 14, "bold")).pack(pady=5)
         
         # Servo Labels Configuration (Left Label (-), Right Label (+))
         self.servo_labels = {
@@ -827,20 +840,29 @@ class ServoGUI:
         # Show Category Frame
         self.category_frame.pack(side="top", fill="both", expand=True)
         
-        # Header
+        # Header - Grid Layout for Centering
         header_frame = tk.Frame(self.category_frame)
         header_frame.pack(fill="x", pady=5)
         
-        tk.Label(header_frame, text=f"Category: {category_name}", font=("Arial", 16, "bold")).pack(side="left", padx=20)
+        header_frame.columnconfigure(0, weight=1, uniform="sides")
+        header_frame.columnconfigure(1, weight=0)
+        header_frame.columnconfigure(2, weight=1, uniform="sides")
         
-        # BACK BUTTON (Gaze Selectable)
+        # Left: Title
+        tk.Label(header_frame, text=f"Category: {category_name}", font=("Arial", 16, "bold")).grid(row=0, column=0, sticky="w", padx=20)
+        
+        # Center: Back Button
         back_btn = PresetWidget(
             header_frame,
             "Back to Main",
             dwell_time=1.0,
             callback=lambda _: self.hide_category_view()
         )
-        back_btn.pack(side="right", padx=20)
+        back_btn.grid(row=0, column=1) # Centered
+        
+        # Right: Spacer
+        tk.Frame(header_frame).grid(row=0, column=2, sticky="ew")
+        
         self.category_widgets_list.append(back_btn)
         
         # Content Frame (Split: Presets Left, Manual Right)

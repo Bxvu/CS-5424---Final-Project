@@ -28,7 +28,7 @@ SERVO_MAP = {
 SERVO_LIMITS = {
     "Black": {
         "Base": (-50, 130),
-        "Shoulder": (20, 110),
+        "Shoulder": (-50, 150),
         "Elbow": (-50, 130),
         "Wrist": (-50, 130), # 90 middle
         "Gripper": (-50, 50)

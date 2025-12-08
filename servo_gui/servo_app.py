@@ -51,7 +51,7 @@ SERVO_MAP = {
 SERVO_LIMITS = {
     "Black": {
         "Base": (-50, 130),
-        "Shoulder": (20, 110),
+        "Shoulder": (20, 150),
         "Elbow": (-50, 130),
         "Wrist": (-50, 130), # 90 middle
         "Gripper": (-50, 50)
@@ -184,6 +184,7 @@ class ServoGUI:
         self.root.attributes('-fullscreen', True)
         self.root.bind("<Escape>", self.quit_app) # Exit on Escape
         self.running = True
+        self._quitting = False
         
         # Initialize LED Attention Meter
         self.led_meter = AttentionLEDMeter()
@@ -304,6 +305,8 @@ class ServoGUI:
         
         # Track current mode
         self.in_preset_mode = True
+        self.in_category_mode = False # Submenu state for presets
+        self.active_category_name = None
         
         # Columns Frame
         self.columns_frame = tk.Frame(self.main_frame)
@@ -442,41 +445,77 @@ class ServoGUI:
                     else:
                         widget.clear_hover()
             else:
-                # Hit testing for Preset Widgets
-                for pw in self.preset_widgets:
-                    pwx = pw.winfo_rootx()
-                    pwy = pw.winfo_rooty()
-                    pww = pw.winfo_width()
-                    pwh = pw.winfo_height()
-                    
-                    if pwx <= gaze_x <= pwx + pww and pwy <= gaze_y <= pwy + pwh:
-                        pw.update_gaze()
-                    else:
-                        pw.clear_hover()
+                # Presets Mode
+                if self.in_category_mode:
+                    # Hit testing for current category widgets (Presets or Manual)
+                    for widget in self.category_widgets_list:
+                        wx = widget.winfo_rootx()
+                        wy = widget.winfo_rooty()
+                        ww = widget.winfo_width()
+                        wh = widget.winfo_height()
+                        
+                        if wx <= gaze_x <= wx + ww and wy <= gaze_y <= wy + wh:
+                            # Duck typing: Check if it's a ServoWidget (needs rel_x) or PresetWidget (no args)
+                            if isinstance(widget, ServoWidget):
+                                rel_x = gaze_x - wx
+                                widget.update_gaze(rel_x)
+                            else:
+                                widget.update_gaze()
+                        else:
+                            widget.clear_hover()
+                else:
+                    # Hit testing for Main Menu Preset Widgets
+                    for pw in self.preset_widgets:
+                        pwx = pw.winfo_rootx()
+                        pwy = pw.winfo_rooty()
+                        pww = pw.winfo_width()
+                        pwh = pw.winfo_height()
+                        
+                        if pwx <= gaze_x <= pwx + pww and pwy <= gaze_y <= pwy + pwh:
+                            pw.update_gaze()
+                        else:
+                            pw.clear_hover()
         
         # Process frames for all relevant widgets
         self.toggle_widget.process_frame(attention)
         
         if not self.in_preset_mode:
+            # MANUAL MODE
             for widget in self.widgets:
                 widget.process_frame(attention)
         else:
-            for pw in self.preset_widgets:
-                pw.process_frame(attention)
+            # PRESET MODES
+            if self.in_category_mode:
+                # SUBMENU MODE
+                for widget in self.category_widgets_list:
+                     widget.process_frame(attention)
+            else:
+                # MAIN PRESET MENU
+                for pw in self.preset_widgets:
+                    pw.process_frame(attention)
                 
         self.root.after(50, self.update_loop) # Check every 50ms
 
     def toggle_mode(self):
         """Toggle between fine-grained control and preset poses."""
         if not self.in_preset_mode:
-            # Switch to Presets mode
+            # Switch TO Presets mode
             self.columns_frame.pack_forget()
-            self.presets_frame.pack(side="top", fill="both", expand=True)
+            
+            if self.in_category_mode:
+                self.category_frame.pack(side="top", fill="both", expand=True)
+            else:
+                self.presets_frame.pack(side="top", fill="both", expand=True)
+                
             self.in_preset_mode = True
             self.toggle_widget.set_state(True)
         else:
-            # Switch to Manual mode
-            self.presets_frame.pack_forget()
+            # Switch TO Manual mode
+            if self.in_category_mode:
+                self.category_frame.pack_forget()
+            else:
+                self.presets_frame.pack_forget()
+                
             self.columns_frame.pack(side="top", fill="both", expand=True)
             self.in_preset_mode = False
             self.toggle_widget.set_state(False)
@@ -537,51 +576,95 @@ class ServoGUI:
                 (500, {"RightArm": {"Shoulder": 45, "Elbow": 0}, "LeftArm": {"Shoulder": 45, "Elbow": 0}}),
                 (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90}, "LeftArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90}}),
             ],
-            "Throw (1. Prepare)": {
-                "RightArm": {"Shoulder": 30, "Elbow": 120, "Wrist": 90, "Gripper": -50}, # Shoulder > 20, Gripper > -50
-            },
-            "Throw (2. Load)": {
-                "RightArm": {"Shoulder": 30, "Elbow": 120, "Wrist": 90, "Gripper": 45}, # Close gripper on object
-            },
-            "Throw (3. Launch)": [
-                (100, {"RightArm": {"Shoulder": 80, "Elbow": 80}}), # Accelerate
-                (150, {"RightArm": {"Shoulder": 105, "Elbow": 50, "Gripper": 45}}), # Swing (Keep Closed)
-                (150, {"RightArm": {"Shoulder": 110, "Elbow": 45, "Gripper": -50}}), # Release (Open at end)
-                (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90, "Gripper": -50}}) # Return Home
-            ],
-            "Kick (1. Load)": {
-                "RightArm": {"Shoulder": 90, "Elbow": -50, "Wrist": 90, "Gripper": 45}, # Low and bent back
-            },
-            "Kick (2. Strike)": [
-                (200, {"RightArm": {"Shoulder": 70, "Elbow": 30}}), # Fast swing up and out
-                (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90, "Gripper": 0}}) # Return Home
-            ],
             "Pass Object (L to R)": [
                 (2000, {"LeftArm": {"Base": 60, "Shoulder": 90, "Elbow": -20, "Wrist": 55, "Gripper": -40}}), # Grab pose
                 (750, {"LeftArm": {"Gripper": 70}}), # Close gripper
-                (100, {"LeftArm": {"Shoulder": 30, "Elbow": 70}}), # Lift
+                (200, {"LeftArm": {"Shoulder": 30, "Elbow": 60}}), # Lift
+                (500, {"LeftArm": {"Elbow": 70}}), # Lift
                 (1500, {"LeftArm": {"Base": -30}}), # Rotate to R
-                (1500, {"RightArm": {"Base": 90, "Shoulder": 90, "Elbow": 80, "Wrist": 90, "Gripper": -40}}), # R Ready
-                (1000, {"LeftArm": {"Elbow": 35}}), # Lower to R
-                (500, {"RightArm": {"Gripper": 47}}), # R Grip
-                (500, {"LeftArm": {"Gripper": 0}}), # L Release
+                (450, {"RightArm": {"Base": 75, "Shoulder": 130, "Elbow": 130, "Wrist": 30, "Gripper": 15}}), # R Ready
+                # (1000, {"LeftArm": {"Elbow": 80}}), # Lower to R
+                (1000, {"LeftArm": {"Shoulder": 45, "Elbow": 20}}), # Lower to R
+                (2000, {"LeftArm": {"Gripper": 0}}), # L Release
+                (500, {"RightArm": {"Wrist": 90, "Gripper": 50}}), # R Grip
                 (1000, {"LeftArm": {"Base": 60, "Elbow": 70}}), # L Retract
-                # (1500, {"RightArm": {"Base": 10, "Elbow": -10}}), # R Rotate to Drop
-                # (500, {"RightArm": {"Gripper": -30}}), # R Release
-                # (1000, {"RightArm": {"Shoulder": 50, "Elbow": -50}}), # R Nudge/Clear
-                # (1000, {"RightArm": {"Elbow": 80}}), # R Straighten
+                (1500, {"RightArm": {"Base": 10, "Shoulder": 100, "Elbow": 110}}), # R Rotate to Drop
+                (1000, {"RightArm": {"Shoulder": 60, "Elbow": 100}}), # R Backwards
+                (500, {"RightArm": {"Elbow": -10, "Gripper": -30}}), # R Release
+                (1000, {"RightArm": {"Shoulder": 50, "Elbow": -50}}), # R Nudge/Clear
+                (1000, {"RightArm": {"Elbow": 80}}), # R Straighten
             ]
         }
 
-        # Create gaze-selectable preset widgets
-        btn_frame = tk.Frame(self.presets_frame)
-        btn_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        # Category Configuration: Grouping complex animations + Manual Controls
+        self.categories = {
+            "Throw": {
+                "presets": {
+                    "Prepare": {
+                        "RightArm": {"Shoulder": 30, "Elbow": 120, "Wrist": 90, "Gripper": -50},
+                    },
+                    "Load": {
+                        "RightArm": {"Shoulder": 30, "Elbow": 120, "Wrist": 90, "Gripper": 45},
+                    },
+                    "Launch": [
+                        (100, {"RightArm": {"Shoulder": 80, "Elbow": 80}}),
+                        (150, {"RightArm": {"Shoulder": 105, "Elbow": 50, "Gripper": 45}}),
+                        (150, {"RightArm": {"Shoulder": 110, "Elbow": 45, "Gripper": -50}}),
+                        (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90, "Gripper": -50}})
+                    ]
+                },
+                "manual_controls": [
+                    ("RightArm", "Base"),
+                    ("RightArm", "Shoulder")
+                ]
+            },
+            "Kick": {
+                "presets": {
+                    "Load": {
+                        "RightArm": {"Shoulder": 90, "Elbow": -50, "Wrist": 90, "Gripper": 45},
+                    },
+                    "Strike": [
+                        (200, {"RightArm": {"Shoulder": 70, "Elbow": 30}}),
+                        (500, {"RightArm": {"Shoulder": 65, "Elbow": 90, "Wrist": 90, "Gripper": 0}})
+                    ]
+                },
+                "manual_controls": [
+                    ("RightArm", "Base")
+                ]
+            }
+        }
 
+        # Create gaze-selectable preset widgets
+        self.preset_btn_frame = tk.Frame(self.presets_frame)
+        self.preset_btn_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # Store widgets for hit testing
+        self.category_widgets = [] # For category buttons
+        
         row = 0
         col = 0
+        
+        # 1. Add Categories
+        for cat_name in self.categories.keys():
+            pw = PresetWidget(
+                self.preset_btn_frame,
+                cat_name,
+                dwell_time=1.5,
+                callback=self.show_category_view
+            )
+            # Style it slightly differently maybe? For now just use text.
+            pw.grid(row=row, column=col, padx=10, pady=5, sticky="nsew")
+            self.preset_widgets.append(pw) # Add to main hit testing list
+            
+            col += 1
+            if col > 1:
+                col = 0
+                row += 1
+
+        # 2. Add Regular Presets
         for preset_name in self.presets.keys():
             pw = PresetWidget(
-                btn_frame,
+                self.preset_btn_frame,
                 preset_name,
                 dwell_time=1.5,
                 callback=self.apply_preset
@@ -595,7 +678,119 @@ class ServoGUI:
         
         # Configure grid weights for even spacing
         for i in range(2):
-            btn_frame.columnconfigure(i, weight=1)
+            self.preset_btn_frame.columnconfigure(i, weight=1)
+
+        # Pre-create a frame for Category View (Submenu) - Hidden initially
+        self.category_frame = tk.Frame(self.main_frame)
+        self.category_widgets_list = [] # Store widgets in current category view for hit testing
+        self.current_category_presets = {} # Local presets for the active category
+        
+    def show_category_view(self, category_name):
+        """Switch to categorical submenu."""
+        if category_name not in self.categories:
+            return
+
+        print(f"Opening category: {category_name}")
+        
+        # Hide Main Presets
+        self.presets_frame.pack_forget()
+        
+        # Update State
+        self.in_category_mode = True
+        self.active_category_name = category_name
+        
+        # Clear previous category UI
+        for widget in self.category_frame.winfo_children():
+            widget.destroy()
+        self.category_widgets_list = []
+        self.current_category_presets = self.categories[category_name]["presets"]
+        
+        # Show Category Frame
+        self.category_frame.pack(side="top", fill="both", expand=True)
+        
+        # Header
+        header_frame = tk.Frame(self.category_frame)
+        header_frame.pack(fill="x", pady=5)
+        
+        tk.Label(header_frame, text=f"Category: {category_name}", font=("Arial", 16, "bold")).pack(side="left", padx=20)
+        
+        # BACK BUTTON (Gaze Selectable)
+        back_btn = PresetWidget(
+            header_frame,
+            "Back to Main",
+            dwell_time=1.0,
+            callback=lambda _: self.hide_category_view()
+        )
+        back_btn.pack(side="right", padx=20)
+        self.category_widgets_list.append(back_btn)
+        
+        # Content Frame (Split: Presets Left, Manual Right)
+        content = tk.Frame(self.category_frame)
+        content.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        left_pane = tk.Frame(content)
+        left_pane.pack(side="left", fill="both", expand=True)
+        
+        right_pane = tk.Frame(content)
+        right_pane.pack(side="right", fill="both", expand=True)
+        
+        # 1. Category Presets (Left Side)
+        tk.Label(left_pane, text="Actions", font=("Arial", 14)).pack(pady=5)
+        for preset_name in self.current_category_presets.keys():
+            pw = PresetWidget(
+                left_pane,
+                preset_name,
+                dwell_time=1.5,
+                callback=self.apply_category_preset
+            )
+            pw.pack(fill="x", pady=5, padx=10)
+            self.category_widgets_list.append(pw)
+            
+        # 2. Manual Controls (Right Side)
+        tk.Label(right_pane, text="Manual Adjust", font=("Arial", 14)).pack(pady=5)
+        manual_actions = self.categories[category_name].get("manual_controls", [])
+        
+        for arm_name, servo_name in manual_actions:
+            # Create a ServoWidget instance
+            # We need to find the current angle first
+            current_angle = self.servo_angles[arm_name][servo_name]
+            
+            sw = ServoWidget(right_pane, arm_name, servo_name, callback=self.on_servo_action)
+            sw.pack(pady=5, fill="both", expand=True)
+            
+            # Set limits
+            servo_type = ARM_CONFIG.get(arm_name)
+            if servo_type and servo_name in SERVO_LIMITS[servo_type]:
+                min_limit, max_limit = SERVO_LIMITS[servo_type][servo_name]
+                sw.set_limits(min_limit, max_limit)
+                
+            sw.set_angle(current_angle)
+            self.category_widgets_list.append(sw)
+            # Note: We append to category_widgets_list, which handles hit testing for both Preset and Servo widgets dynamically
+            # because they implement update_gaze/clear_hover similarly?
+            # actually ServoWidget has update_gaze(rel_x) and PresetWidget has update_gaze().
+            # We need to handle this distinction in update_loop.
+
+    def hide_category_view(self):
+        """Return to main preset menu."""
+        print("Returning to main menu")
+        self.category_frame.pack_forget()
+        self.presets_frame.pack(side="top", fill="both", expand=True)
+        self.in_category_mode = False
+        self.active_category_name = None
+        
+    def apply_category_preset(self, preset_name):
+        """Apply a preset from the current active category."""
+        if not self.active_category_name or preset_name not in self.current_category_presets:
+            return
+            
+        preset = self.current_category_presets[preset_name]
+        print(f"Applying category preset: {preset_name}")
+        
+        if isinstance(preset, list):
+            self.run_animation(preset, 0)
+        else:
+            self.interpolate_pose(preset, 1000)
 
     def apply_preset(self, preset_name):
         """Apply a preset pose or animation to the servos."""
@@ -766,31 +961,66 @@ class ServoGUI:
 
     def quit_app(self, event=None):
         """Cleanly exit the application."""
+        if self._quitting:
+            return
+        self._quitting = True
+        
         print("Quitting application...")
-        self.running = False
+        self.running = False # Stop update loops
         
         # Return to startup pose if defined
         if STARTUP_POSE:
             print("Returning to startup pose...")
             try:
-                # Use interpolate for smooth exit if possible, but we need to block or wait
-                # Since we are quitting, blocking sleep is acceptable/safer than async
-                # But let's use apply_pose (fast move) + sleep to ensure it gets there
-                # Or better: use interpolate logic manually? 
-                # Let's stick to the plan: apply_pose + sleep.
-                # Actually, let's try to be smooth: interpolate needs the loop.
-                # We can just run a mini-loop here or just use apply_pose.
-                # Given the user likes smooth, let's try to use the existing interpolate 
-                # but we need to delay the destroy.
+                # BLOCKING INTERPOLATION LOOP
+                # We need to manually interpolate because the main loop is ending.
+                # 1. Calculate start and end states
+                start_angles = {}
+                changes = {}
+                duration_ms = 1500 # 1.5 seconds for smooth return
+                steps = int(duration_ms / 20) # 50Hz update
                 
-                # Simpler approach for reliability: Apply pose (jumps to target) -> Sleep
-                self.apply_pose(STARTUP_POSE)
+                for arm, joints in STARTUP_POSE.items():
+                    if arm not in self.servo_angles: continue
+                    
+                    for joint, target_angle in joints.items():
+                        if joint not in self.servo_angles[arm]: continue
+                        
+                        current = self.servo_angles[arm][joint]
+                        start_angles[(arm, joint)] = current
+                        
+                        # Clamp target
+                        servo_type = ARM_CONFIG.get(arm)
+                        min_limit, max_limit = 0, 180
+                        if servo_type and joint in SERVO_LIMITS[servo_type]:
+                            min_limit, max_limit = SERVO_LIMITS[servo_type][joint]
+                        safe_target = max(min_limit, min(max_limit, target_angle))
+                        
+                        changes[(arm, joint)] = safe_target - current
+
+                # 2. Run the loop
+                for i in range(steps + 1):
+                    progress = i / steps
+                    # Ease function (optional, linear is fine for safety)
+                    ease = progress
+                    
+                    for key, start_angle in start_angles.items():
+                        arm, joint = key
+                        total_change = changes[key]
+                        new_angle = int(start_angle + (total_change * ease))
+                        
+                        # Send to hardware directly
+                        if self.servo:
+                            try:
+                                channel = SERVO_MAP[arm][joint]
+                                self.servo.move_servo_position(channel, new_angle)
+                            except:
+                                pass
+                                
+                    time.sleep(0.02) # 20ms
                 
-                # Process pending events to ensure command is sent
-                self.root.update()
+                print("Return to startup pose complete.")
                 
-                # Wait for physical movement
-                time.sleep(1.5)
             except Exception as e:
                 print(f"Error returning to startup pose: {e}")
 
@@ -812,8 +1042,24 @@ class ServoGUI:
         if self.servo:
             print("Cleaning up servos...")
             try:
-                self.servo.sleep()  # Put PCA9685 to sleep - stops all PWM
+                # 1. Explicitly stop all used channels first (if possible)
+                # This is a safeguard in case sleep() misses some
+                for arm in SERVO_MAP:
+                    for joint, channel in SERVO_MAP[arm].items():
+                        try:
+                            # Setting pulse to 0 usually stops the PWM
+                            # self.servo.move_servo_position(channel, 0) # This moves to 0 degrees, NOT OFF
+                            # We need to stop the signal. 
+                            # If the library doesn't expose 'stop_channel', we rely on sleep.
+                            pass 
+                        except:
+                            pass
+                            
+                # 2. Put PCA9685 to sleep - stops all PWM
+                self.servo.sleep()  
+                time.sleep(0.1) # Wait for I2C to finish
                 print("Servos put to sleep (PWM stopped).")
+                
             except Exception as e:
                 print(f"Error during cleanup: {e}")
             finally:
@@ -821,11 +1067,20 @@ class ServoGUI:
 
     def __del__(self):
         self.cleanup_servos()
-        self.led_meter.clear()
+        try:
+            self.led_meter.clear()
+        except:
+            pass
         if hasattr(self, 'headset'):
-            self.headset.stop()
+            try:
+                self.headset.stop()
+            except:
+                pass
         if hasattr(self, 'eye_tracker') and self.eye_tracker:
-            self.eye_tracker.stop()
+            try:
+                self.eye_tracker.stop()
+            except:
+                pass
 
 def on_closing(app, root):
     """Handle window close."""

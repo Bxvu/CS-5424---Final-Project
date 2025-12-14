@@ -4,6 +4,15 @@
 
 A Brain-Computer Interface (BCI) system that enables hands-free control of dual robot arms using **brain waves (EEG)**, **eye tracking**, and **head position**.
 
+## Authors
+
+Benthan Vu (bv233) [Link to my labs from this class](https://github.com/Bxvu/Interactive-Lab-Hub)
+
+Akash Basu
+
+Evan Fang
+
+
 # [Project Plan <-- Links To Slides](https://docs.google.com/presentation/d/1WY4ilFuVzT3Rz_qvewdD0awsA0MkKxgCzuKVUzCQ7ec/edit?usp=sharing)
 
 *Click Below image for video - Our Process*
@@ -363,15 +372,6 @@ See `setup_guide.md` for detailed hardware setup instructions including:
 - Raspberry Pi configuration
 
 ---
-
-## Authors
-
-Benthan Vu (bv233)
-
-Akash Basu
-
-Evan Fang
-
 
 ## Reflection
 

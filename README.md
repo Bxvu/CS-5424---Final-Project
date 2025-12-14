@@ -10,6 +10,10 @@ A Brain-Computer Interface (BCI) system that enables hands-free control of dual 
 
 [![Project Process](https://img.youtube.com/vi/bEdHWzW3KOQ/maxresdefault.jpg)](https://youtu.be/bEdHWzW3KOQ)
 
+*Click Below image for video - Final User Tests*
+
+[![Final User Tests](https://img.youtube.com/vi/nCsQuOMSU3k/maxresdefault.jpg)](https://youtu.be/nCsQuOMSU3k)
+
 ---
 
 ## Overview

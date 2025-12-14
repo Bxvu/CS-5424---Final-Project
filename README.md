@@ -4,6 +4,12 @@
 
 A Brain-Computer Interface (BCI) system that enables hands-free control of dual robot arms using **brain waves (EEG)**, **eye tracking**, and **head position**.
 
+# [Project Plan <-- Links To Slides](https://docs.google.com/presentation/d/1WY4ilFuVzT3Rz_qvewdD0awsA0MkKxgCzuKVUzCQ7ec/edit?usp=sharing)
+
+*Click Below image for video - Our Process*
+
+[![Project Process](https://img.youtube.com/vi/bEdHWzW3KOQ/maxresdefault.jpg)](https://youtu.be/bEdHWzW3KOQ)
+
 ---
 
 ## Overview
@@ -345,4 +351,36 @@ See `setup_guide.md` for detailed hardware setup instructions including:
 
 ## Authors
 
-CS-5424 Interactive Device Design - Fall 2025
+Benthan Vu (bv233)
+
+Akash Basu
+
+Evan Fang
+
+
+## Reflection
+
+Overall this was pretty fun! We spent multiple nights working past midnight trying to get everything to work. We all worked pretty equally on this, everyone was asking about what they could do to help, or completing tasks that no one else was doing. For example, I told the team that once I was finishing making some more pose presets for the arms, I would work on adding the light strip to the program. Akash was free, so he was able to work on adding the light strip instead, while I was still working on the presets. One thing I wish I knew at the start was the reason for our power issue. This was one of the main reasons why I'd stay up so late. Trying to figure out why it was happening, and seeing if it would go away. Another thing I wish I knew at the start was keeping in mind that our demo is supposed to be interactive. I spent a bit too much time trying to make a complex passing animation that would play in its entirety in one go. Near the end, I realized that it should probably have more interactivity in it than just triggering one long animation, so I split it into different stages, just like the kick and throw animations. We also ran into a lot of issues and had various success rates in regards to fixing them.
+
+The first issue we had was trying to connect the headset to bluetooth in the first place, to read data from it. Akash was unable to due to his macbook and was unable to figure out how to connect the headset to the pi. He gave me the headset and let me try connecting. After a while, with the help of Gemini, we figured out that we needed to change a bluetooth configuration to connect to it.
+
+Most of out other issues were related to the robotic arms. One issue we ran into when moving the arm's joints was the limit of how much they could rotate. Sometimes if they rotated too much in one direction, they couldn't rotate back.
+![laptop power](readme_images/whiteboard_1.jpg)
+To fix this, we used a test program to test the limits of each servo and made it so servos would be programatically limited in the code.
+
+Another issue was a power issue where we would sometimes get a warning from our pi that it didnt have enough energy to support all the servos. We tried many solutions with the aid of Google Gemini, such as switching power sources. We tried to used a stronger 90W laptop charger instead of the 27W pi chargers, but that didn't work since it seemed to cause the arms to move erratically. Another thing we tried was power isolation by cutting one of the connections of the pi servo pHAT so that the power drain wouldn't cause the pi to shutdown. Instead, it just made the arms weaker, so we assumed the servos needed both power sources. We even did power isolation with the laptop charger, but it still had the issue of erratic arm movements. Gemini said that was because the laptop charger, even though it has higher watts, has something called "dirty power" related to charging laptops.
+![laptop power](readme_images/laptop_power_1.jpg)
+![laptop power](readme_images/laptop_power_2.jpg)
+We were unable to find a fix for this in time for the final demo, but we noticed that this power issue only happened like an hour after we first start using the program. So for the final demo we didn't start the program until we had a tester ready. But surprisingly, during the demo, the power issue never happened. And after a bunch of thinking, I realize the issue may be because I was using an LLM running directly on the pi to help with coding, since I was using SSH to work on code. This LLM would then overheat the pi, causing more power usage. And that would be why the issue never happened during our demos, because we wouldn't be coding and therefore the LLM wouldn't be active.
+
+We also ran into issues with the arms. Sometimes they would become jittery. We were able to fix this by isolating the faulty servo and replacing it.
+![servo replace](readme_images/servo_rep_1.jpg)
+![servo replace](readme_images/servo_rep_2.jpg)
+
+I also wanted to 3D print a stand that our arms could pick up objects from. Unfortunately the 3D printer didn't seem to work, and I had multiple failed prints.
+![3d print fails](readme_images/failed_print.jpg)
+Eventually I got it to print a mini table that we could place an object on, but in the end we didn't even use it in the final demo.
+
+There were also some quality of life things we added to the UI after noticing issues that users had when trying out our program. We had a button to toggle between manual control and presets on the top right originally, but after noticing that it may be too diffcult to reach easily with the eye tracking, we moved it to the center. During manual control, we also saw that users would sometimes stay on one button, thinking that they were controlling a servo, but in reality it had already reached its max angle. So we changed the buttons so that they stop highlighting when the servo is maxed, to show the user that the button isn't active anymore. We also made the control window only 80% of the screen size because if it was full screen, sometimes people could get distracted and look away, and the eye tracking cursor would get stuck on the edge of the screen on top of a button, and accidentally trigger it. We also saw that users were having an issue staying on the buttons, so we made them bigger, as well as making it so that staring would build up progress, which would decay over time when looking away instead of immediately resetting to zero.
+
+Overall, we have learned a lot. I have learned more hardware things than I have even known, since I had only been doing software before this class. This has inspired me to try building another hardware device outside of class that uses a mini camera connected to an LLM.

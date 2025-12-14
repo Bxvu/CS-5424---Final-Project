@@ -75,7 +75,7 @@ CS-5424---Final-Project/
 
 ### 1. NeuroSky Headset Integration
 
-**Files:** `pi_headset.py`, `servo_gui/headset_input.py`
+**Files:** `testing_features/pi_headset.py`, `servo_gui/headset_input.py`
 
 Connects to a NeuroSky MindWave headset via Bluetooth RFCOMM and parses the ThinkGear protocol:
 
@@ -90,7 +90,7 @@ Connects to a NeuroSky MindWave headset via Bluetooth RFCOMM and parses the Thin
 
 ### 2. Eye & Head Tracking
 
-**Files:** `eye_tracking.py`, `servo_gui/eye_tracker.py`
+**Files:** `testing_features/eye_tracking.py`, `servo_gui/eye_tracker.py`
 
 Uses MediaPipe Face Mesh to track:
 - **Iris position** within each eye (pupil tracking)
@@ -210,6 +210,8 @@ Key dependencies:
 - `qwiic-led-stick` - LED attention meter
 - `screeninfo` - Screen dimension detection
 
+**⚠️ IMPORTANT:** Follow the instructions in [`setup_guide.md`](setup_guide.md) to connect the NeuroSky Headset to the Raspberry Pi via Bluetooth.
+
 ---
 
 ## Usage
@@ -226,18 +228,27 @@ cd rsp_game
 python3 rsp.py
 ```
 
+### Standalone Manual Servo Control
+```bash
+cd testing_features
+python3 test_servo.py
+```
+
 ### Standalone Eye Tracking Demo
 ```bash
+cd testing_features
 python3 eye_tracking.py
 ```
 
 ### Standalone Headset Data Viewer
 ```bash
+cd testing_features
 python3 pi_headset.py
 ```
 
 ### Mock Headset Data (for testing without hardware)
 ```bash
+cd testing_features
 python3 sudodata.py --att_mean 60 --att_var 15 --interval 0.5
 ```
 

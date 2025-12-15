@@ -8,7 +8,7 @@ A Brain-Computer Interface (BCI) system that enables hands-free control of dual 
 
 Benthan Vu (bv233) [Link to my labs from this class](https://github.com/Bxvu/Interactive-Lab-Hub)
 
-Akash Basu
+Akash Basu (ab334) [Link to my labs from this class(NOTE: all my labs are in different branches)](https://github.com/RedInJapanese/Interactive-Lab-Hub)
 
 Evan Fang (hf363) [Link to my labs from this class](https://github.com/fghdfm112/Interactive-Lab-Hub)
 
@@ -53,14 +53,14 @@ This project creates an accessible human-robot interaction system where users ca
 **Storyboard 2**
 - Setting: User is sat at their desk in front of a monitor contianing the GUI for controlling two robotic arms.
 - Players: People who are amputees or have some sort of physical disability that inhits motor skills.
-- Activity 1: When the user focuses on a specific rectangle pertaining to either arm, rather than moving one servo, the arms will instead enact a preset command, allowing users to complete more specific tasks using abstractions.
+- Activity 2: When the user focuses on a specific rectangle pertaining to either arm, rather than moving one servo, the arms will instead enact a preset command, allowing users to complete more specific tasks using abstractions.
 <img width="1200" height="1553" alt="image" src="https://github.com/user-attachments/assets/ccc53e84-55ef-4141-a8c1-a0e0a4e75d5d" />
 
 
 **Storyboard 3**
 - Setting: User is sat at their desk in front of a monitor contianing the GUI for controlling two robotic arms.
 - Players: People who are amputees or have some sort of physical disability that inhits motor skills.
-- Activity 1: When the user focuses on a specific rectangle(rock, paper, scissors), the left arm will take the user input and change the grip position accordingly. An AI agent will then pick as well and change the grip position of the right arm. The final result of who won will be displayed on the monitor. 
+- Activity 3: When the user focuses on a specific rectangle(rock, paper, scissors), the left arm will take the user input and change the grip position accordingly. An AI agent will then pick as well and change the grip position of the right arm. The final result of who won will be displayed on the monitor. 
 <img width="1200" height="1553" alt="image" src="https://github.com/user-attachments/assets/1d9d63d5-cbd1-4ae6-aa30-de50de3f15ab" />
 
 ---
@@ -428,6 +428,8 @@ I also wanted to 3D print a stand that our arms could pick up objects from. Unfo
 Eventually I got it to print a mini table that we could place an object on, but in the end we didn't even use it in the final demo.
 
 There were also some quality of life things we added to the UI after noticing issues that users had when trying out our program. We had a button to toggle between manual control and presets on the top right originally, but after noticing that it may be too diffcult to reach easily with the eye tracking, we moved it to the center. During manual control, we also saw that users would sometimes stay on one button, thinking that they were controlling a servo, but in reality it had already reached its max angle. So we changed the buttons so that they stop highlighting when the servo is maxed, to show the user that the button isn't active anymore. We also made the control window only 80% of the screen size because if it was full screen, sometimes people could get distracted and look away, and the eye tracking cursor would get stuck on the edge of the screen on top of a button, and accidentally trigger it. We also saw that users were having an issue staying on the buttons, so we made them bigger, as well as making it so that staring would build up progress, which would decay over time when looking away instead of immediately resetting to zero.
+
+Another thing we forgot to take into consideration is user height. During the monday presentation of our work, we noticed that some user's had no difficulty in the beginning with eye tracking, but several did due to to the camera needing to be angled down to match the orientation of their head. One thing we could have done is anticipate this ahead of time and angle the camera before starting the program and connecting to the headset. 
 
 From the expo on Monday, we had a very good experience. Many people visited our booth and gave us a lot of advice as well as positive feedback and compliments. People mentioned that they loved the setup, and that it was exciting to actually use brain waves to control the robot arm and perform the actions they wanted.
 

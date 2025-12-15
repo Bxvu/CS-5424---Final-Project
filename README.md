@@ -43,7 +43,6 @@ This project creates an accessible human-robot interaction system where users ca
 
 ---
 
----
 ## Storyboards 
 
 <img width="1200" height="1553" alt="image" src="https://github.com/user-attachments/assets/8f386d6f-9241-46f2-b9e9-12e7b2386bbf" />

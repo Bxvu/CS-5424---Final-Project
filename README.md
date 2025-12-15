@@ -17,6 +17,7 @@ Evan Fang (hf363) [Link to my labs from this class](https://github.com/fghdfm112
 
 *Click Below image for video - Our Process*
 
+
 [![Project Process](https://img.youtube.com/vi/bEdHWzW3KOQ/maxresdefault.jpg)](https://youtu.be/bEdHWzW3KOQ)
 
 *Click Below image for video - Final User Tests*
@@ -39,6 +40,17 @@ This project creates an accessible human-robot interaction system where users ca
 ## Verplank Diagram
 
 ![Verplank Diagram](vd.jpg)
+
+---
+
+---
+## Storyboards 
+
+<img width="1200" height="1553" alt="image" src="https://github.com/user-attachments/assets/8f386d6f-9241-46f2-b9e9-12e7b2386bbf" />
+
+<img width="1200" height="1553" alt="image" src="https://github.com/user-attachments/assets/ccc53e84-55ef-4141-a8c1-a0e0a4e75d5d" />
+
+<img width="1200" height="1553" alt="image" src="https://github.com/user-attachments/assets/1d9d63d5-cbd1-4ae6-aa30-de50de3f15ab" />
 
 ---
 

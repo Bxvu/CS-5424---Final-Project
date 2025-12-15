@@ -10,7 +10,7 @@ Benthan Vu (bv233) [Link to my labs from this class](https://github.com/Bxvu/Int
 
 Akash Basu
 
-Evan Fang
+Evan Fang (hf363) [Link to my labs from this class](https://github.com/fghdfm112/Interactive-Lab-Hub)
 
 
 # [Project Plan <-- Links To Slides](https://docs.google.com/presentation/d/1WY4ilFuVzT3Rz_qvewdD0awsA0MkKxgCzuKVUzCQ7ec/edit?usp=sharing)
@@ -34,6 +34,11 @@ This project creates an accessible human-robot interaction system where users ca
 | **Attention Level** | NeuroSky MindWave EEG Headset | Confirms intent (higher focus = action trigger) |
 | **Gaze Position** | Webcam + MediaPipe | Selects which control to activate |
 | **Head Position** | Webcam + MediaPipe | Coarse pointing for gaze targeting |
+
+---
+## Verplank Diagram
+
+![Verplank Diagram](vd.jpg)
 
 ---
 

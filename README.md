@@ -44,11 +44,23 @@ This project creates an accessible human-robot interaction system where users ca
 ---
 
 ## Storyboards 
-
+**Storyboard 1**
+- Setting: User is sat at their desk in front of a monitor contianing the GUI for controlling two robotic arms.
+- Players: People who are amputees or have some sort of physical disability that inhits motor skills.
+- Activity 1: When the user focuses on a specific rectangle pertaining to either arm, the respective servo for that arm will move **x** degrees to the right or left.
 <img width="1200" height="1553" alt="image" src="https://github.com/user-attachments/assets/8f386d6f-9241-46f2-b9e9-12e7b2386bbf" />
 
+**Storyboard 2**
+- Setting: User is sat at their desk in front of a monitor contianing the GUI for controlling two robotic arms.
+- Players: People who are amputees or have some sort of physical disability that inhits motor skills.
+- Activity 1: When the user focuses on a specific rectangle pertaining to either arm, rather than moving one servo, the arms will instead enact a preset command, allowing users to complete more specific tasks using abstractions.
 <img width="1200" height="1553" alt="image" src="https://github.com/user-attachments/assets/ccc53e84-55ef-4141-a8c1-a0e0a4e75d5d" />
 
+
+**Storyboard 3**
+- Setting: User is sat at their desk in front of a monitor contianing the GUI for controlling two robotic arms.
+- Players: People who are amputees or have some sort of physical disability that inhits motor skills.
+- Activity 1: When the user focuses on a specific rectangle(rock, paper, scissors), the left arm will take the user input and change the grip position accordingly. An AI agent will then pick as well and change the grip position of the right arm. The final result of who won will be displayed on the monitor. 
 <img width="1200" height="1553" alt="image" src="https://github.com/user-attachments/assets/1d9d63d5-cbd1-4ae6-aa30-de50de3f15ab" />
 
 ---

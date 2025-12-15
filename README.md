@@ -376,6 +376,9 @@ See `setup_guide.md` for detailed hardware setup instructions including:
 - Servo hat wiring
 - Raspberry Pi configuration
 
+### Example Physical Setup - Final Demo
+![setup](readme_images/final_demo_setup.jpg)
+
 ---
 
 ## Reflection
